@@ -1,54 +1,46 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 class DifferentiableBeamSearch(nn.Module):
     """
-    Explore l'espace des trajectoires de manière différentiable,
-    en sélectionnant les transitions les plus prometteuses.
+    Explore l'espace des trajectoires.
+    - Entraînement : sélection douce relaxée par Gumbel-Softmax (différentiable).
+    - Inférence : top-k dur sans surcoût.
     """
-    def __init__(self, emb_dim: int, beam_width: int = 4):
+    def __init__(self, emb_dim: int, beam_width: int = 4, tau: float = 1.0):
         super().__init__()
         self.emb_dim = emb_dim
         self.beam_width = beam_width
+        self.tau = tau
         self.transition = nn.Linear(emb_dim * 2, emb_dim)
         self.score_head = nn.Linear(emb_dim, 1)
 
-        # Initialisation Xavier pour stabiliser les gradients
         nn.init.xavier_uniform_(self.transition.weight)
-        nn.init.zeros_(self.transition.bias)
         nn.init.xavier_uniform_(self.score_head.weight)
-        nn.init.zeros_(self.score_head.bias)
 
     def forward(self, query_state: torch.Tensor, candidate_nodes: torch.Tensor) -> torch.Tensor:
-        """
-        Planifie les trajectoires via recherche en faisceau différentiable.
-
-        Args:
-            query_state:     (batch_size, emb_dim)
-            candidate_nodes: (batch_size, num_nodes, emb_dim)
-
-        Returns:
-            selected_trajectories: (batch_size, top_k, emb_dim) où top_k = min(beam_width, num_nodes)
-        """
         batch_size, num_nodes, _ = candidate_nodes.size()
-
-        # 1. Expansion de la requête pour croisement avec chaque nœud candidat
-        query_expanded = query_state.unsqueeze(1).expand(batch_size, num_nodes, self.emb_dim)
-
-        # 2. Concaténation et calcul des transitions d'états
-        pairs = torch.cat([query_expanded, candidate_nodes], dim=-1)
-        trajectories = torch.tanh(self.transition(pairs))  # (batch_size, num_nodes, emb_dim)
-
-        # 3. Scoring différentiable des trajectoires candidates
-        scores = self.score_head(trajectories).squeeze(-1)  # (batch_size, num_nodes)
-
-        # 4. Détermination sécurisée du top-k
         top_k = min(self.beam_width, num_nodes)
-        _, top_indices = torch.topk(scores, k=top_k, dim=-1)  # (batch_size, top_k)
 
-        # 5. Extraction propre avec torch.gather
-        # Expansion des indices pour correspondre à (batch_size, top_k, emb_dim)
-        gather_indices = top_indices.unsqueeze(-1).expand(-1, -1, self.emb_dim)
-        selected_trajectories = torch.gather(trajectories, dim=1, index=gather_indices)
+        query_expanded = query_state.unsqueeze(1).expand(batch_size, num_nodes, self.emb_dim)
+        pairs = torch.cat([query_expanded, candidate_nodes], dim=-1)
+        trajectories = torch.tanh(self.transition(pairs))  # (B, N, D)
+        scores = self.score_head(trajectories).squeeze(-1)  # (B, N)
 
-        return selected_trajectories
+        if self.training:
+            # Gumbel-Softmax itératif pour simuler un top-k différentiable
+            logits = scores.clone()
+            soft_selections = []
+            for _ in range(top_k):
+                weights = F.gumbel_softmax(logits, tau=self.tau, hard=True, dim=-1) # STE
+                selected_step = torch.bmm(weights.unsqueeze(1), trajectories).squeeze(1)
+                soft_selections.append(selected_step)
+                # Masquage doux pour pénaliser les nœuds déjà retenus
+                logits = logits - (weights * 1e9)
+            return torch.stack(soft_selections, dim=1) # (B, top_k, D)
+        else:
+            # Inférence classique dure
+            _, top_indices = torch.topk(scores, k=top_k, dim=-1)
+            gather_indices = top_indices.unsqueeze(-1).expand(-1, -1, self.emb_dim)
+            return torch.gather(trajectories, dim=1, index=gather_indices)
