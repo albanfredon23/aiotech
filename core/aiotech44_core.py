@@ -1,3 +1,4 @@
+
 import logging
 import torch
 import torch.nn as nn
@@ -14,8 +15,9 @@ logger = logging.getLogger(__name__)
 
 class AIOTECH44_EnergyCore(nn.Module):
     """
-    Orchestrateur central connectant le budget mémoire et l'élagage
-    au pipeline réel de décision.
+    Orchestrateur central unifiant calcul adaptatif, allocation d'agents,
+    logique formelle, recherche de trajectoires, élagage géométrique SCG
+    et allocation différentielle de mémoire.
     """
     def __init__(
         self, 
@@ -30,6 +32,7 @@ class AIOTECH44_EnergyCore(nn.Module):
         self.num_agents = num_agents
         self.num_rules = num_rules
         
+        # Modules cognitifs et énergétiques
         self.compute_gate = AdaptiveComputeGate(emb_dim)
         self.agent_allocator = DynamicAgentAllocator(emb_dim, num_agents)
         self.neuro_symbolic_engine = NeuroSymbolicEngine(emb_dim, num_rules)
@@ -38,9 +41,9 @@ class AIOTECH44_EnergyCore(nn.Module):
         self.memory_allocator = DifferentialMemoryAllocator(base_k=2, max_k=min(20, num_nodes))
         
         # La tête de politique combine :
-        # - Le contexte du graphe (emb_dim)
-        # - Le contexte des trajectoires survivantes (emb_dim)
-        # - Le contexte mémoire réellement alloué par budget_k (emb_dim)
+        # - graph_context (emb_dim)
+        # - trajectory_context (emb_dim)
+        # - memory_context issu du budget_k réel (emb_dim)
         self.policy_head = nn.Linear(emb_dim * 3, num_nodes)
         nn.init.xavier_uniform_(self.policy_head.weight)
         nn.init.zeros_(self.policy_head.bias)
@@ -53,55 +56,87 @@ class AIOTECH44_EnergyCore(nn.Module):
         constraints: torch.Tensor
     ) -> Dict[str, Any]:
         """
-        Forward pass avec réduction réelle du calcul et propagation de gradient.
+        Forward pass avec flux causal complet et traçabilité énergétique.
+
+        Args:
+            query_emb: (batch_size, emb_dim)
+            retrieved_docs_emb: (batch_size, seq_len, emb_dim)
+            graph_nodes: (batch_size, num_nodes, emb_dim)
+            constraints: (batch_size, emb_dim) ou (batch_size, num_constraints, emb_dim)
+
+        Returns:
+            Dictionnaire contenant la politique, les trajectoires, 
+            les scores de complexité et les métriques de ressources.
         """
-        # 1. Évaluation et réduction de la mémoire contextuelle dès l'entrée
-        # Estimation initiale de cohérence requête/contraintes pour dimensionner le RAG
-        initial_violation = torch.relu(-query_emb * constraints).sum(dim=-1, keepdim=True)
-        
-        # Contexte tronqué physiquement à k_max_batch (réduction VRAM et FLOPs)
-        sliced_memory, budget_k, mem_padding_mask = self.memory_allocator(
-            initial_violation, retrieved_docs_emb
-        )
-        
-        # Pooling pondéré par le masque de validité réel
-        valid_counts = mem_padding_mask.sum(dim=1, keepdim=True).clamp(min=1).unsqueeze(-1)
-        docs_context = sliced_memory.sum(dim=1, keepdim=True) / valid_counts  # (batch_size, 1, emb_dim)
-        fused_query = query_emb + docs_context.squeeze(1)
+        try:
+            # 1. Fusion RAG initiale
+            docs_mean = retrieved_docs_emb.mean(dim=1)
+            fused_query = query_emb + docs_mean
 
-        # 2. Gate adaptatif sur les nœuds
-        gated_nodes, complexity = self.compute_gate(fused_query, graph_nodes)
+            # 2. Gate adaptatif sur le graphe de calcul
+            gated_nodes, complexity = self.compute_gate(fused_query, graph_nodes)
 
-        # 3. Allocation conditionnelle des agents
-        weighted_context, agent_weights = self.agent_allocator(fused_query)
+            # 3. Allocation conditionnelle des agents
+            weighted_context, agent_weights = self.agent_allocator(fused_query)
 
-        # 4. Inférence neuro-symbolique (Gödel)
-        logic_activation = self.neuro_symbolic_engine(weighted_context)
-        logic_context = torch.matmul(logic_activation, self.neuro_symbolic_engine.rule_embeddings)
-        fused_query = fused_query + logic_context
+            # 4. Activation symbolique (Logique de Gödel)
+            logic_activation = self.neuro_symbolic_engine(weighted_context)
+            logic_context = torch.matmul(logic_activation, self.neuro_symbolic_engine.rule_embeddings)
+            fused_query = fused_query + logic_context
 
-        # 5. Recherche de trajectoires et élagage SCG
-        raw_trajectories = self.beam_planner(fused_query, gated_nodes)
-        surviving_trajectories, active_mask = self.scg_pruner.prune_trajectories(
-            raw_trajectories, constraints
-        )
+            # 5. Planification différentiable des faisceaux de trajectoires
+            raw_trajectories = self.beam_planner(fused_query, gated_nodes)
 
-        # 6. Synthèse finale : TOUS les composants conditionnels pilotent la décision
-        graph_context = gated_nodes.mean(dim=1)
-        trajectory_context = surviving_trajectories.mean(dim=1)
-        memory_summary = docs_context.squeeze(1)
-        
-        combined_repr = torch.cat([graph_context, trajectory_context, memory_summary], dim=-1)
-        policy = self.policy_head(combined_repr)
+            # 6. Élagage géométrique préventif SCG
+            surviving_trajectories, active_mask = self.scg_pruner.prune_trajectories(
+                raw_trajectories, constraints
+            )
 
-        return {
-            "policy": policy,
-            "trajectories": surviving_trajectories,
-            "complexity_score": complexity,
-            "active_agents": agent_weights,
-            "budget_k": budget_k,
-            "allocated_tokens": sliced_memory.size(1),  # Preuve physique de réduction
-            "allocated_memory_ratio": self.memory_allocator.get_budget_efficiency(
+            # 7. Allocation différentielle de mémoire VRAM pilotée par l'admissibilité
+            allocated_memory, budget_k = self.memory_allocator(
+                active_mask, retrieved_docs_emb
+            )
+            memory_ratio = self.memory_allocator.get_budget_efficiency(
                 budget_k, retrieved_docs_emb.size(1)
             )
+
+            # 8. Tête de décision connectée causale
+            graph_context = gated_nodes.mean(dim=1)
+            trajectory_context = surviving_trajectories.mean(dim=1)
+            
+            # Intégration causale : la mémoire contextuelle allouée influence directement la policy
+            memory_context = allocated_memory.mean(dim=1)
+            
+            combined_context = torch.cat(
+                [graph_context, trajectory_context, memory_context], dim=-1
+            )
+            policy = self.policy_head(combined_context)
+
+            # Nombre effectif de tokens/documents retenus par lot
+            allocated_tokens = int(budget_k.max().item()) if isinstance(budget_k, torch.Tensor) else int(budget_k)
+
+            return {
+                "policy": policy,
+                "trajectories": surviving_trajectories,
+                "complexity_score": complexity,
+                "active_agents": agent_weights,
+                "budget_k": budget_k,
+                "allocated_tokens": allocated_tokens,
+                "allocated_memory_ratio": memory_ratio
+            }
+
+        except Exception as e:
+            logger.error(f"Erreur d'exécution dans AIOTECH44_EnergyCore.forward: {str(e)}")
+            raise
+
+    def get_summary(self) -> Dict[str, Any]:
+        """Retourne le comptage précis des paramètres du moteur."""
+        return {
+            "emb_dim": self.emb_dim,
+            "num_nodes": self.num_nodes,
+            "num_agents": self.num_agents,
+            "num_rules": self.num_rules,
+            "total_params": sum(p.numel() for p in self.parameters()),
+            "trainable_params": sum(p.numel() for p in self.parameters() if p.requires_grad)
         }
+
