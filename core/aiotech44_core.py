@@ -13,7 +13,7 @@ from scg.pruner import SCGEnergyPruner
 class AIOTECH44_EnergyCore(nn.Module):
     """
     Orchestrateur central unifiant calcul adaptatif, agents spécialisés,
-    logique formelle différentiable, élagage SCG et allocation mémoire différentielle.
+    logique formelle différentiable, élagage SCG et mémoire différentielle.
     """
     def __init__(
         self,
@@ -46,7 +46,7 @@ class AIOTECH44_EnergyCore(nn.Module):
         # 6. Allocation différentielle de mémoire contextuelle
         self.memory_allocator = DifferentialMemoryAllocator(base_k=2, max_k=min(20, num_nodes))
 
-        # 7. Tête de décision finale (Fusion : Graphe + Trajectoires + Résumé Mémoire)
+        # 7. Tête de décision finale (Graphe + Trajectoires + Résumé Mémoire)
         self.policy_head = nn.Linear(emb_dim * 3, num_nodes)
 
     def forward(
@@ -59,6 +59,8 @@ class AIOTECH44_EnergyCore(nn.Module):
         """
         Passe avant complète du pipeline adaptatif AIOTECH44.
         """
+        total_docs = retrieved_docs_emb.size(1)
+
         # Étape 1 : Modulation adaptative de l'effort de calcul
         gated_nodes, complexity_score = self.compute_gate(query_emb, graph_nodes)
 
@@ -77,17 +79,21 @@ class AIOTECH44_EnergyCore(nn.Module):
         # Étape 4 : Génération des trajectoires candidates
         raw_trajectories = self.beam_planner(fused_query, gated_nodes)
 
-        # Étape 5 : Élagage géométrique SCG
+        # Étape 5 : Élagage géométrique SCG (récupération des scores réels)
         surviving_trajectories, active_mask, scg_scores, scg_loss = self.scg_pruner(
             raw_trajectories, constraints
         )
 
-        # Étape 6 : Allocation dynamique de la mémoire (prise en compte des 3 sorties et des scores SCG réels)
+        # Étape 6 : Allocation dynamique de la mémoire (3 retours synchronisés)
         allocated_memory, budget_k, padding_mask = self.memory_allocator(
             scg_scores, retrieved_docs_emb
         )
 
-        # Étape 7 : Synthèse et décision finale (Policy)
+        # Calcul des métriques contextuelles attendues en aval
+        allocated_tokens = budget_k.sum().item()
+        allocated_memory_ratio = (budget_k.mean().item() / max(1, total_docs))
+
+        # Étape 7 : Synthèse et décision finale (Policy connectée à la mémoire)
         graph_context = gated_nodes.mean(dim=1)
         trajectory_context = surviving_trajectories.mean(dim=1)
         memory_summary = allocated_memory.mean(dim=1)
@@ -103,12 +109,14 @@ class AIOTECH44_EnergyCore(nn.Module):
             "complexity_score": complexity_score,
             "active_agents": agent_weights,
             "budget_k": budget_k,
+            "allocated_tokens": allocated_tokens,
+            "allocated_memory_ratio": allocated_memory_ratio,
             "padding_mask": padding_mask,
             "scg_loss": scg_loss
         }
 
     def get_summary(self) -> Dict[str, Any]:
-        """Retourne le bilan des paramètres du modèle."""
+        """Retourne un résumé de l'empreinte paramétrique du modèle."""
         return {
             "emb_dim": self.emb_dim,
             "num_nodes": self.num_nodes,
