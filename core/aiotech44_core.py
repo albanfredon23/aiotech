@@ -13,7 +13,7 @@ from scg.pruner import SCGEnergyPruner
 class AIOTECH44_EnergyCore(nn.Module):
     """
     Orchestrateur central unifiant calcul adaptatif, agents spécialisés,
-    logique formelle différentiable, élagage SCG et mémoire différentielle.
+    logique formelle, filtrage géométrique SCG et allocation mémoire.
     """
     def __init__(
         self,
@@ -28,15 +28,13 @@ class AIOTECH44_EnergyCore(nn.Module):
         self.num_agents = num_agents
         self.num_rules = num_rules
 
-        # Modules constitutifs
+        # Sous-modules du pipeline
         self.compute_gate = AdaptiveComputeGate(emb_dim=emb_dim)
         self.agent_allocator = DynamicAgentAllocator(emb_dim=emb_dim, num_agents=num_agents)
         self.neuro_symbolic_engine = NeuroSymbolicEngine(emb_dim=emb_dim, num_rules=num_rules)
         self.beam_planner = DifferentiableBeamSearch(emb_dim=emb_dim)
         self.scg_pruner = SCGEnergyPruner()
         self.memory_allocator = DifferentialMemoryAllocator(base_k=2, max_k=min(20, num_nodes))
-
-        # Tête de décision finale (Graphe + Trajectoires + Résumé Mémoire)
         self.policy_head = nn.Linear(emb_dim * 3, num_nodes)
 
     def forward(
@@ -48,46 +46,46 @@ class AIOTECH44_EnergyCore(nn.Module):
     ) -> Dict[str, Any]:
         total_docs = retrieved_docs_emb.size(1)
 
-        # 1. Évaluation et porte adaptative
+        # 1. Gate adaptatif
         gated_nodes, complexity_score = self.compute_gate(query_emb, graph_nodes)
 
-        # 2. Allocation dynamique des agents
+        # 2. Routage des agents
         weighted_context, agent_weights = self.agent_allocator(query_emb)
 
-        # 3. Logique formelle neuro-symbolique
+        # 3. Logique neuro-symbolique
         logic_activation = self.neuro_symbolic_engine(weighted_context)
         logic_context = torch.matmul(
             logic_activation, self.neuro_symbolic_engine.rule_embeddings
         )
         fused_query = query_emb + logic_context
 
-        # 4. Planificateur de trajectoires
+        # 4. Planification des trajectoires
         raw_trajectories = self.beam_planner(fused_query, gated_nodes)
 
-        # 5. Élagage SCG (4 sorties synchronisées)
-        surviving_trajectories, active_mask, scg_scores, scg_loss = self.scg_pruner(
+        # 5. Élagage SCG (3 sorties actuelles)
+        surviving_trajectories, active_mask, scg_loss = self.scg_pruner(
             raw_trajectories, constraints
         )
 
-        # 6. Allocation mémoire différentielle (3 sorties déballées)
+        # 6. Allocation mémoire (3 sorties récupérées, active_mask en entrée)
         allocated_memory, budget_k, padding_mask = self.memory_allocator(
-            scg_scores, retrieved_docs_emb
+            active_mask, retrieved_docs_emb
         )
 
-        # Calcul propre des métriques scalaires
+        # Métriques contextuelles
         allocated_tokens = budget_k.detach().mean()
-        allocated_memory_ratio = (allocated_tokens / max(1, total_docs)) * 100.0
         allocated_tokens_total = padding_mask.sum().detach()
+        allocated_memory_ratio = (allocated_tokens / total_docs) * 100.0
 
-        # 7. Synthèse décisionnelle causale
+        # 7. Décision finale
         graph_context = gated_nodes.mean(dim=1)
         trajectory_context = surviving_trajectories.mean(dim=1)
         memory_summary = allocated_memory.mean(dim=1)
 
-        fused_features = torch.cat(
+        fused_decision_features = torch.cat(
             [graph_context, trajectory_context, memory_summary], dim=-1
         )
-        policy_logits = self.policy_head(fused_features)
+        policy_logits = self.policy_head(fused_decision_features)
 
         return {
             "policy": policy_logits,
@@ -99,7 +97,7 @@ class AIOTECH44_EnergyCore(nn.Module):
             "allocated_tokens_total": allocated_tokens_total,
             "allocated_memory_ratio": allocated_memory_ratio,
             "padding_mask": padding_mask,
-            "scg_loss": scg_loss
+            "scg_loss": scg_loss,
         }
 
     def get_summary(self) -> Dict[str, Any]:
@@ -109,5 +107,5 @@ class AIOTECH44_EnergyCore(nn.Module):
             "num_agents": self.num_agents,
             "num_rules": self.num_rules,
             "total_params": sum(p.numel() for p in self.parameters()),
-            "trainable_params": sum(p.numel() for p in self.parameters() if p.requires_grad)
+            "trainable_params": sum(p.numel() for p in self.parameters() if p.requires_grad),
         }
