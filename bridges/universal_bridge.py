@@ -1,3 +1,4 @@
+from typing import List, Optional, Dict, Any
 import os
 import torch
 from litellm import completion, embedding
@@ -5,7 +6,8 @@ from core.aiotech44_core import AIOTECH44_EnergyCore
 
 class AIOTECHBridge:
     """
-    Middleware universel connectant AIOTECH44 à n'importe quel LLM/fournisseur d'IA.
+    Middleware universel connectant AIOTECH44 à n'importe quel LLM/fournisseur d'IA
+    (OpenAI, Gemini, Anthropic, Mistral, etc.) via LiteLLM.
     """
     def __init__(self, model_name: str = "gpt-4o", emb_dim: int = 256):
         self.model_name = model_name
@@ -13,33 +15,43 @@ class AIOTECHBridge:
         
         # Moteur adaptatif AIOTECH44
         self.core = AIOTECH44_EnergyCore(emb_dim=emb_dim, num_nodes=50, num_agents=4)
-        self.projection = None
+        self.projection = None  # S'adapte dynamiquement à la dimension d'embedding reçue
 
     def get_embedding(self, text: str) -> torch.Tensor:
-        # Sélection automatique du modèle d'embedding ou standard universel
+        """
+        Génère l'embedding du texte via le fournisseur adapté et projette
+        le vecteur sur la dimension emb_dim du moteur.
+        """
         embed_model = "text-embedding-3-small" if "gpt" in self.model_name else "text-embedding-004"
         
         response = embedding(model=embed_model, input=[text])
         raw_vec = response.data[0]["embedding"]
         vec_tensor = torch.tensor(raw_vec, dtype=torch.float32).unsqueeze(0)
         
-        # Alignement automatique des dimensions selon le fournisseur
+        # Alignement automatique de la dimension selon le modèle d'embedding utilisé
         input_dim = vec_tensor.size(-1)
         if self.projection is None or self.projection.in_features != input_dim:
             self.projection = torch.nn.Linear(input_dim, self.emb_dim)
             
         return self.projection(vec_tensor)
 
-    def run_inference(self, prompt: str, reference_docs: list[str] = None):
+    def run_inference(
+        self, 
+        prompt: str, 
+        reference_docs: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """
+        Exécute le filtrage préventif SCG et l'inférence adaptative avant d'appeler le LLM.
+        """
         if reference_docs is None:
             reference_docs = ["Document de référence par défaut."]
 
-        # 1. Encodage sémantique
+        # 1. Encodage sémantique de la requête et des documents
         query_emb = self.get_embedding(prompt)
         doc_embs = [self.get_embedding(doc) for doc in reference_docs]
         docs_tensor = torch.stack(doc_embs, dim=1)
 
-        # 2. États latents et contraintes SCG
+        # 2. Initialisation des états latents et des contraintes SCG
         graph_nodes = torch.randn(1, 50, self.emb_dim)
         constraints = torch.randn(1, self.emb_dim)
 
