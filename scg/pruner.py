@@ -1,69 +1,82 @@
-import logging
-from typing import Tuple, Dict, Any
+from typing import Tuple
 import torch
 import torch.nn as nn
 
-logger = logging.getLogger(__name__)
 
 class SCGEnergyPruner(nn.Module):
     """
-    Régularisateur géométrique du Spherical Constraint Graph (SCG).
-    - Entraînement : pondération continue différentiable.
-    - Inférence : élagage binaire dur.
+    Garde-fou géométrique sphérique (SCG).
+    Pénalise continûment les violations de contraintes le long des trajectoires à l'entraînement,
+    et applique un élagage franc (pruning) lors de l'inférence.
     """
     def __init__(
-        self, 
-        lam: float = 0.2, 
-        energy_threshold: float = 0.5, 
-        temp: float = 0.1,
-        max_history_len: int = 1000
+        self,
+        lam: float = 0.2,
+        energy_threshold: float = 0.5,
+        temperature: float = 0.1
     ):
         super().__init__()
         self.lam = lam
         self.energy_threshold = energy_threshold
-        self.temp = max(temp, 1e-5)
-        self.max_history_len = max_history_len
-        self.violation_history = []
+        self.temperature = temperature
 
     def forward(
-        self, 
-        trajectories: torch.Tensor, 
+        self,
+        trajectories: torch.Tensor,
         constraints: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        # Gestion du format des contraintes
-        if constraints.dim() == 1:
-            c = constraints.unsqueeze(0).unsqueeze(0)
-        elif constraints.dim() == 2:
-            c = constraints.unsqueeze(1)
-        else:
-            c = constraints
+        """
+        Args:
+            trajectories: (batch_size, num_trajectories, emb_dim)
+            constraints:  (batch_size, emb_dim)
 
-        violations = torch.relu(-trajectories * c).sum(dim=-1)
+        Returns:
+            surviving_trajectories: Trajectoires pondérées ou élaguées
+            active_mask: Masque d'activation (continu en train, binaire en eval)
+            scg_loss: Terme scalaire de régularisation différentiable
+        """
+        # Normalisation unitaire sur la sphère S^(D-1)
+        norm_trajectories = torch.nn.functional.normalize(trajectories, p=2, dim=-1)
+        norm_constraints = torch.nn.functional.normalize(constraints, p=2, dim=-1).unsqueeze(1)
+
+        # Violation angulaire le long de la trajectoire
+        # Une projection négative traduit une opposition géométrique à la contrainte
+        violations = torch.relu(-norm_trajectories * norm_constraints).sum(dim=-1)
         scg_scores = self.lam * violations
-        scg_loss = scg_scores.mean()
 
         if self.training:
-            soft_mask = torch.sigmoid((self.energy_threshold - scg_scores) / self.temp)
-            surviving_trajectories = trajectories * soft_mask.unsqueeze(-1)
-            active_mask = soft_mask
+            # Mode entraînement : masque doux différentiable via sigmoïde tempérée
+            # Garantit la rétropropagation vers le planificateur de trajectoires
+            active_mask = torch.sigmoid((self.energy_threshold - scg_scores) / self.temperature)
+            surviving_trajectories = trajectories * active_mask.unsqueeze(-1)
+            scg_loss = scg_scores.mean()
         else:
-            hard_mask = (scg_scores < self.energy_threshold).float()
-            surviving_trajectories = trajectories * hard_mask.unsqueeze(-1)
-            active_mask = hard_mask
-
-        # Suivi borné de l'historique
-        total_violations = float(violations.sum().item())
-        self.violation_history.append(total_violations)
-        if len(self.violation_history) > self.max_history_len:
-            self.violation_history.pop(0)
+            # Mode inférence : seuil dur binaire pour économiser le calcul
+            active_mask = (scg_scores < self.energy_threshold).float()
+            surviving_trajectories = trajectories * active_mask.unsqueeze(-1)
+            scg_loss = torch.tensor(0.0, device=trajectories.device)
 
         return surviving_trajectories, active_mask, scg_loss
 
-    def prune_trajectories(
-        self, 
-        trajectories: torch.Tensor, 
+    # Alias pour préserver la rétrocompatibilité des appels
+    prune_trajectories = forward
+
+
+class SCGScore(nn.Module):
+    """
+    Module utilitaire pour l'évaluation ponctuelle de la pénalité géométrique.
+    """
+    def __init__(self, lam: float = 0.2):
+        super().__init__()
+        self.lam = lam
+
+    def compute_penalty(
+        self,
+        trajectory_state: torch.Tensor,
         constraints: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Méthode explicite appelée par AIOTECH44_EnergyCore."""
-        surviving, mask, _ = self.forward(trajectories, constraints)
-        return surviving, mask
+    ) -> torch.Tensor:
+        """Calcule la pénalité géométrique pour un état donné."""
+        norm_state = torch.nn.functional.normalize(trajectory_state, p=2, dim=-1)
+        norm_constraints = torch.nn.functional.normalize(constraints, p=2, dim=-1)
+        violation = torch.relu(-norm_state * norm_constraints).sum(dim=-1)
+        return self.lam * violation
