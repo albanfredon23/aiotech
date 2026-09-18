@@ -84,16 +84,16 @@ class AIOTECH44_EnergyCore(nn.Module):
             raw_trajectories, constraints
         )
 
-        # Étape 6 : Allocation dynamique de la mémoire (3 retours synchronisés)
+        # Étape 6 : Allocation dynamique de la mémoire (3 sorties synchronisées)
         allocated_memory, budget_k, padding_mask = self.memory_allocator(
             scg_scores, retrieved_docs_emb
         )
 
-        # Calcul des métriques contextuelles attendues en aval
-        allocated_tokens = budget_k.sum().item()
-        allocated_memory_ratio = (budget_k.mean().item() / max(1, total_docs))
+        # Métriques attendues par main.py et tests/test_pipeline.py
+        allocated_tokens = int(budget_k.sum().item())
+        allocated_memory_ratio = float(budget_k.mean().item() / max(1, total_docs))
 
-        # Étape 7 : Synthèse et décision finale (Policy connectée à la mémoire)
+        # Étape 7 : Synthèse et décision finale
         graph_context = gated_nodes.mean(dim=1)
         trajectory_context = surviving_trajectories.mean(dim=1)
         memory_summary = allocated_memory.mean(dim=1)
@@ -116,7 +116,6 @@ class AIOTECH44_EnergyCore(nn.Module):
         }
 
     def get_summary(self) -> Dict[str, Any]:
-        """Retourne un résumé de l'empreinte paramétrique du modèle."""
         return {
             "emb_dim": self.emb_dim,
             "num_nodes": self.num_nodes,
