@@ -13,7 +13,7 @@ from scg.pruner import SCGEnergyPruner
 class AIOTECH44_EnergyCore(nn.Module):
     """
     Orchestrateur central unifiant calcul adaptatif, agents spécialisés,
-    logique formelle différentiable, élagage SCG et mémoire différentielle.
+    logique formelle différentiable, élagage SCG et allocation mémoire différentielle.
     """
     def __init__(
         self,
@@ -37,7 +37,7 @@ class AIOTECH44_EnergyCore(nn.Module):
         # 3. Moteur logique neuro-symbolique (Soft-Gödel)
         self.neuro_symbolic_engine = NeuroSymbolicEngine(emb_dim=emb_dim, num_rules=num_rules)
 
-        # 4. Planificateur de trajectoires
+        # 4. Planificateur de trajectoires (Gumbel-Softmax STE / Top-k)
         self.beam_planner = DifferentiableBeamSearch(emb_dim=emb_dim)
 
         # 5. Élagage géométrique et régularisation (SCG)
@@ -78,15 +78,13 @@ class AIOTECH44_EnergyCore(nn.Module):
         raw_trajectories = self.beam_planner(fused_query, gated_nodes)
 
         # Étape 5 : Élagage géométrique SCG
-        # Utilisation de l'interface forward standard du module
-        surviving_trajectories, active_mask, scg_loss = self.scg_pruner(
+        surviving_trajectories, active_mask, scg_scores, scg_loss = self.scg_pruner(
             raw_trajectories, constraints
         )
 
-        # Étape 6 : Allocation dynamique de la mémoire
-        # Tronquage effectif et masquage du contexte récupéré
-        allocated_memory, budget_k = self.memory_allocator(
-            active_mask, retrieved_docs_emb
+        # Étape 6 : Allocation dynamique de la mémoire (prise en compte des 3 sorties et des scores SCG réels)
+        allocated_memory, budget_k, padding_mask = self.memory_allocator(
+            scg_scores, retrieved_docs_emb
         )
 
         # Étape 7 : Synthèse et décision finale (Policy)
@@ -105,11 +103,12 @@ class AIOTECH44_EnergyCore(nn.Module):
             "complexity_score": complexity_score,
             "active_agents": agent_weights,
             "budget_k": budget_k,
+            "padding_mask": padding_mask,
             "scg_loss": scg_loss
         }
 
     def get_summary(self) -> Dict[str, Any]:
-        """Retourne un résumé de l'empreinte paramétrique du modèle."""
+        """Retourne le bilan des paramètres du modèle."""
         return {
             "emb_dim": self.emb_dim,
             "num_nodes": self.num_nodes,
