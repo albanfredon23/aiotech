@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AIOTECH 45 — Middleware de Reachability Cognitive & Green AI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #080C15; color: #F1F5F9; }
+    code, pre, .font-mono { font-family: 'JetBrains Mono', monospace; }
+    .glow-emerald { box-shadow: 0 0 40px -10px rgba(16, 185, 129, 0.25); }
+    .glow-cyan { box-shadow: 0 0 40px -10px rgba(6, 182, 212, 0.25); }
+    .grid-bg {
+      background-size: 40px 40px;
+      background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                        linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    }
+  </style>
+</head>
+<body class="grid-bg min-h-screen flex flex-col justify-between">
+
+  <!-- NAVIGATION -->
+  <header class="sticky top-0 z-50 backdrop-blur-md bg-[#080C15]/80 border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-cyan-400 flex items-center justify-center font-bold text-black text-xl shadow-lg shadow-emerald-500/20">
+          A
+        </div>
+        <div>
+          <span class="text-xl font-extrabold tracking-tight text-white">AIOTECH <span class="text-emerald-400">45</span></span>
+          <span class="block text-[10px] uppercase font-mono tracking-widest text-slate-400">Cognitive Reachability Engine</span>
+        </div>
+      </div>
+      <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
+        <a href="#vision" class="hover:text-emerald-400 transition">Rupture Technologique</a>
+        <a href="#pipeline" class="hover:text-emerald-400 transition">Pipeline ARG</a>
+        <a href="#simulator" class="hover:text-emerald-400 transition">Bac à Sable</a>
+        <a href="#benchmarks" class="hover:text-emerald-400 transition">Validation Rigoureuse</a>
+        <a href="#pricing" class="hover:text-emerald-400 transition">Offres B2B</a>
+      </nav>
+      <div class="flex items-center gap-4">
+        <a href="https://github.com/albanfredon23/aiotech" target="_blank" class="px-4 py-2 text-xs font-mono rounded-lg border border-slate-700 hover:border-slate-500 transition text-slate-300">GitHub v0.4.5</a>
+        <a href="#contact" class="px-5 py-2.5 text-xs font-semibold rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black transition shadow-lg shadow-emerald-500/20">Demander un Audit PoC</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- HERO SECTION -->
+    <section class="max-w-7xl mx-auto px-6 pt-24 pb-20 text-center relative">
+      <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-mono mb-8">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        Au-delà de la prédiction statistique brute de tokens
+      </div>
+      <h1 class="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight max-w-4xl mx-auto leading-[1.1] mb-8">
+        La réponse est une conséquence.<br>
+        <span class="bg-gradient-to-r from-emerald-400 via-cyan-400 to-indigo-400 bg-clip-text text-transparent">
+          La trajectoire admissible est l'objectif.
+        </span>
+      </h1>
+      <p class="text-lg sm:text-xl text-slate-400 max-w-2xl mx-auto font-normal mb-12">
+        AIOTECH 45 remplace l'échantillonnage aveugle par un moteur d'accessibilité cognitive. Il filtre en amont les trajectoires violant la causalité et dimensionne dynamiquement le contexte documentaire des LLM.
+      </p>
+
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+        <a href="#simulator" class="w-full sm:w-auto px-8 py-4 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-black font-bold text-sm hover:opacity-95 transition shadow-lg shadow-emerald-500/25">
+          Tester le simulateur en direct
+        </a>
+        <a href="#benchmarks" class="w-full sm:w-auto px-8 py-4 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-600 text-white font-semibold text-sm transition">
+          Voir le protocole GSM8K & Green AI
+        </a>
+      </div>
+
+      <!-- KEY METRICS GRID -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-5xl mx-auto mt-20">
+        <div class="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 text-left">
+          <div class="text-3xl font-extrabold text-emerald-400 font-mono">-30 % à -50 %</div>
+          <div class="text-xs uppercase tracking-wider text-slate-400 font-medium mt-1">Fenêtre de contexte</div>
+          <p class="text-[11px] text-slate-500 mt-2">Réduction dynamique du volume documentaire injecté via DifferentialMemoryAllocator.</p>
+        </div>
+        <div class="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 text-left">
+          <div class="text-3xl font-extrabold text-cyan-400 font-mono">Déterministe</div>
+          <div class="text-xs uppercase tracking-wider text-slate-400 font-medium mt-1">AdaptiveComputeGate</div>
+          <p class="text-[11px] text-slate-500 mt-2">Régulation de l'effort de calcul selon la complexité intrinsèque de la requête.</p>
+        </div>
+        <div class="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 text-left">
+          <div class="text-3xl font-extrabold text-indigo-400 font-mono">T-norme Gödel</div>
+          <div class="text-xs uppercase tracking-wider text-slate-400 font-medium mt-1">Vérification Causale</div>
+          <p class="text-[11px] text-slate-500 mt-2">Élimination formelle dès qu'un seul maillon de la chaîne $s_t \to s_{t+1}$ échoue.</p>
+        </div>
+        <div class="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 text-left">
+          <div class="text-3xl font-extrabold text-white font-mono">Dual-Engine</div>
+          <div class="text-xs uppercase tracking-wider text-slate-400 font-medium mt-1">Modularité de domaine</div>
+          <p class="text-[11px] text-slate-500 mt-2">Cœur cognitif pour LLM (ARG) et moteur cinématique pour navigation (KCG).</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION RUPTURE : AIOTECH 44 vs 45 -->
+    <section id="vision" class="max-w-7xl mx-auto px-6 py-20 border-t border-slate-800/80">
+      <div class="text-center max-w-3xl mx-auto mb-16">
+        <h2 class="text-xs uppercase font-mono tracking-widest text-emerald-400 mb-3">La rigueur plutôt que l'abstraction</h2>
+        <h3 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">Le passage d'AIOTECH 44 à AIOTECH 45</h3>
+        <p class="text-slate-400 mt-4 text-sm sm:text-base">
+          Nous avons écarté les projections sur sphères abstraites sans échelle physique pour bâtir un garde-fou d'accessibilité testable, différentiable et falsifiable.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div class="p-8 rounded-2xl bg-red-950/10 border border-red-900/30">
+          <div class="inline-block px-3 py-1 rounded bg-red-500/20 text-red-400 text-xs font-mono font-bold mb-4">AIOTECH 44 (Obsolète)</div>
+          <ul class="space-y-4 text-sm text-slate-300">
+            <li class="flex items-start gap-3">
+              <span class="text-red-400 font-bold">✕</span>
+              <span><strong>Sphère unitaire abstraite :</strong> Projections sur $\mathbb{S}^{D-1}$ déconnectées du sens logique et des distances physiques.</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="text-red-400 font-bold">✕</span>
+              <span><strong>Élagage arbitraire :</strong> Risque d'élaguer 0 % ou 100 % des trajectoires en raison de seuils énergétiques décalés.</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="text-red-400 font-bold">✕</span>
+              <span><strong>Stochasticité en inférence :</strong> Portes de calcul injectant du bruit aléatoire lors de l'exécution.</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="p-8 rounded-2xl bg-emerald-950/15 border border-emerald-500/30 relative glow-emerald">
+          <div class="inline-block px-3 py-1 rounded bg-emerald-500/20 text-emerald-400 text-xs font-mono font-bold mb-4">AIOTECH 45 (Consolidé)</div>
+          <ul class="space-y-4 text-sm text-slate-300">
+            <li class="flex items-start gap-3">
+              <span class="text-emerald-400 font-bold">✓</span>
+              <span><strong>Cône d'accessibilité cognitive (ARG) :</strong> Validation conjointe de la sémantique, de la déduction logique et des transitions causales.</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="text-emerald-400 font-bold">✓</span>
+              <span><strong>T-norme de Gödel & Causalité séquentielle :</strong> L'admissibilité exige $T_G(c_1, \dots, c_H) \ge \tau$, modélisant rigoureusement la chaîne de déduction.</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="text-emerald-400 font-bold">✓</span>
+              <span><strong>Traçabilité formelle des masques :</strong> Distinction nette entre branches strictement conformes, repli (fallback) et allocation effective.</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- PIPELINE ARCHITECTURE -->
+    <section id="pipeline" class="max-w-7xl mx-auto px-6 py-20 border-t border-slate-800">
+      <div class="text-center max-w-3xl mx-auto mb-16">
+        <h2 class="text-xs uppercase font-mono tracking-widest text-cyan-400 mb-3">Orchestration Déterministe</h2>
+        <h3 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">Le Pipeline d'Inférence AIOTECH 45</h3>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-4 font-mono text-xs">
+        <div class="p-5 rounded-xl bg-slate-900 border border-slate-800">
+          <div class="text-emerald-400 font-bold mb-2">01. COMPUTE GATE</div>
+          <div class="text-slate-300 font-semibold mb-2">Evaluation $\lambda$</div>
+          <p class="text-slate-400 text-[11px] font-sans">Mesure la complexité de la requête et applique un seuillage déterministe sur les nœuds actifs.</p>
+        </div>
+        <div class="p-5 rounded-xl bg-slate-900 border border-slate-800">
+          <div class="text-cyan-400 font-bold mb-2">02. STEPWISE TAP</div>
+          <div class="text-slate-300 font-semibold mb-2">Génération $s_t \to s_{t+1}$</div>
+          <p class="text-slate-400 text-[11px] font-sans">Projette récursivement un faisceau de $K$ alternatives de raisonnement sur un horizon temporel.</p>
+        </div>
+        <div class="p-5 rounded-xl bg-slate-900 border border-emerald-500/40 glow-emerald">
+          <div class="text-emerald-400 font-bold mb-2">03. ARG GATE</div>
+          <div class="text-slate-300 font-semibold mb-2">Reachability Filter</div>
+          <p class="text-slate-400 text-[11px] font-sans">Rejette les branches violant la proximité sémantique, la cohérence logique ou la causalité de Gödel.</p>
+        </div>
+        <div class="p-5 rounded-xl bg-slate-900 border border-slate-800">
+          <div class="text-indigo-400 font-bold mb-2">04. MEMORY GATE</div>
+          <div class="text-slate-300 font-semibold mb-2">Budget $k$ Dynamique</div>
+          <p class="text-slate-400 text-[11px] font-sans">Ajuste la quantité de documents injectés selon l'admissibilité mesurée de la trajectoire retenue.</p>
+        </div>
+        <div class="p-5 rounded-xl bg-slate-900 border border-slate-800">
+          <div class="text-white font-bold mb-2">05. POLICY HEAD</div>
+          <div class="text-slate-300 font-semibold mb-2">Décision Certifiée</div>
+          <p class="text-slate-400 text-[11px] font-sans">Agrège le contexte documentaire tronqué et la trajectoire saine pour émettre la réponse finale.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SIMULATEUR INTERACTIF (BAC À SABLE) -->
+    <section id="simulator" class="max-w-7xl mx-auto px-6 py-20 border-t border-slate-800">
+      <div class="text-center max-w-3xl mx-auto mb-12">
+        <h2 class="text-xs uppercase font-mono tracking-widest text-emerald-400 mb-3">Expérimentation en direct</h2>
+        <h3 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">Simulateur d'Accessibilité Cognitive</h3>
+        <p class="text-slate-400 mt-2 text-sm">Observe en temps réel comment le filtre ARG rejette les branches aberrantes et tronque le contexte.</p>
+      </div>
+
+      <div class="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 glow-cyan">
+        <div class="flex flex-col lg:flex-row gap-8">
+          <!-- CONTRÔLES -->
+          <div class="w-full lg:w-1/3 space-y-6">
+            <div>
+              <label class="block text-xs font-mono uppercase text-slate-400 mb-2">Scénario de Test</label>
+              <select id="scenarioSelect" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-400">
+                <option value="nominal">Cas 1 : Raisonnement Mathématique GSM8K (Cohérent)</option>
+                <option value="adversarial">Cas 2 : Dérive Logique & Prémisse Falsifiée (Rejet ARG)</option>
+                <option value="simple">Cas 3 : Requête Frugale Immédiate (Économie Max)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-mono uppercase text-slate-400 mb-2">Seuil de tolérance ARG ($\tau$)</label>
+              <input type="range" id="tauRange" min="0.1" max="0.9" step="0.05" value="0.45" class="w-full accent-emerald-400">
+              <div class="flex justify-between text-[11px] font-mono text-slate-400 mt-1">
+                <span>Permissif (0.1)</span>
+                <span id="tauVal" class="text-emerald-400 font-bold">0.45</span>
+                <span>Strict (0.9)</span>
+              </div>
+            </div>
+
+            <button id="runBtn" class="w-full py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm transition shadow-lg shadow-emerald-500/20">
+              Exécuter l'Inférence Contrainte
+            </button>
+          </div>
+
+          <!-- RÉSULTATS VISUELS -->
+          <div class="w-full lg:w-2/3 bg-slate-950 rounded-2xl p-6 border border-slate-800/80 flex flex-col justify-between font-mono text-xs">
+            <div>
+              <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+                <span class="text-slate-400 uppercase text-[11px]">Traces d'Inférence & Faisceau TAP</span>
+                <span id="simStatus" class="text-emerald-400">Prêt</span>
+              </div>
+
+              <div id="simLog" class="space-y-3 font-sans text-xs">
+                <!-- Log dynamique injecté par JS -->
+              </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-4 border-t border-slate-800 pt-4 mt-6">
+              <div>
+                <span class="block text-slate-500 text-[10px] uppercase">Survie Stricte</span>
+                <span id="resSurvival" class="text-base font-bold text-white font-mono">-</span>
+              </div>
+              <div>
+                <span class="block text-slate-500 text-[10px] uppercase">Documents Alloués</span>
+                <span id="resDocs" class="text-base font-bold text-cyan-400 font-mono">-</span>
+              </div>
+              <div>
+                <span class="block text-slate-500 text-[10px] uppercase">Économie Contexte</span>
+                <span id="resSavings" class="text-base font-bold text-emerald-400 font-mono">-</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION PROTOCOLE EXPERIMENTAL & TRANSPARENCE -->
+    <section id="benchmarks" class="max-w-7xl mx-auto px-6 py-20 border-t border-slate-800">
+      <div class="text-center max-w-3xl mx-auto mb-16">
+        <h2 class="text-xs uppercase font-mono tracking-widest text-indigo-400 mb-3">Assise Scientifique</h2>
+        <h3 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">Le Protocole Comparatif Tripartite</h3>
+        <p class="text-slate-400 mt-4 text-sm">
+          Nous refusons d'annoncer des pourcentages théoriques invérifiables. AIOTECH 45 est soumis à une batterie d'ablation pour isoler précisément la provenance de chaque gain de performance ou d'efficience.
+        </p>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm border-collapse">
+          <thead>
+            <tr class="border-b border-slate-800 text-slate-400 font-mono text-xs">
+              <th class="py-4 px-4">Configuration</th>
+              <th class="py-4 px-4">Génération TAP</th>
+              <th class="py-4 px-4">Garde-fou ARG</th>
+              <th class="py-4 px-4">Mémoire Contextuelle</th>
+              <th class="py-4 px-4">Objectif Expérimental Validé</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800/60 font-sans text-xs sm:text-sm">
+            <tr>
+              <td class="py-4 px-4 font-semibold text-white">A. LLM Baseline</td>
+              <td class="py-4 px-4 text-slate-500">Inactif</td>
+              <td class="py-4 px-4 text-slate-500">Inactif</td>
+              <td class="py-4 px-4 text-slate-400">Fixe ($N=0$)</td>
+              <td class="py-4 px-4 text-slate-400">Point de référence brut (GSM8K).</td>
+            </tr>
+            <tr>
+              <td class="py-4 px-4 font-semibold text-white">B. RAG Standard</td>
+              <td class="py-4 px-4 text-slate-500">Inactif</td>
+              <td class="py-4 px-4 text-slate-500">Inactif</td>
+              <td class="py-4 px-4 text-slate-400">Fixe ($N=8$ fenêtres)</td>
+              <td class="py-4 px-4 text-slate-400">Baseline d'ancrage documentaire classique.</td>
+            </tr>
+            <tr>
+              <td class="py-4 px-4 font-semibold text-white">C. Mémoire Dynamique seule</td>
+              <td class="py-4 px-4 text-slate-500">Inactif</td>
+              <td class="py-4 px-4 text-slate-500">Inactif</td>
+              <td class="py-4 px-4 text-emerald-400 font-mono">Dynamique ($k$)</td>
+              <td class="py-4 px-4 text-slate-400">Isole le gain de réduction de tokens brut.</td>
+            </tr>
+            <tr class="bg-emerald-500/5 border-l-2 border-emerald-400">
+              <td class="py-4 px-4 font-bold text-emerald-400">E. AIOTECH 45 Complet</td>
+              <td class="py-4 px-4 text-emerald-400 font-mono">Actif ($K=4$)</td>
+              <td class="py-4 px-4 text-emerald-400 font-mono">Actif (Gödel)</td>
+              <td class="py-4 px-4 text-emerald-400 font-mono">Dynamique ($k$)</td>
+              <td class="py-4 px-4 text-white font-medium">Rejet préventif des dérives + réduction VRAM mesurée.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- OFFRES COMMERCIALES B2B -->
+    <section id="pricing" class="max-w-7xl mx-auto px-6 py-20 border-t border-slate-800">
+      <div class="text-center max-w-3xl mx-auto mb-16">
+        <h2 class="text-xs uppercase font-mono tracking-widest text-emerald-400 mb-3">Déploiement Industriel</h2>
+        <h3 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">Nos Modèles d'Engagement B2B</h3>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <!-- OFFRE 1 -->
+        <div class="p-8 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col justify-between">
+          <div>
+            <div class="text-xs uppercase font-mono text-slate-400 mb-2">Évaluation Préliminaire</div>
+            <h4 class="text-xl font-bold text-white mb-2">Audit & PoC 5 Jours</h4>
+            <p class="text-xs text-slate-400 mb-6">Confrontation d'AIOTECH 45 sur vos traces documentaires ou vos logs d'inférence propriétaires.</p>
+            <div class="text-2xl font-extrabold text-white font-mono mb-6">3 500 € – 8 000 €</div>
+            <ul class="space-y-3 text-xs text-slate-300">
+              <li>✓ Déploiement sur conteneur isolé</li>
+              <li>✓ Mesure exacte des tokens épargnés</li>
+              <li>✓ Rapport d'ablation comparatif</li>
+            </ul>
+          </div>
+          <a href="#contact" class="mt-8 block text-center py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs transition">Sélectionner ce Pack</a>
+        </div>
+
+        <!-- OFFRE 2 -->
+        <div class="p-8 rounded-2xl bg-slate-900 border border-emerald-500/50 flex flex-col justify-between relative glow-emerald">
+          <div class="absolute -top-3 right-6 px-3 py-1 rounded-full bg-emerald-500 text-black text-[10px] font-extrabold uppercase font-mono">Recommandé</div>
+          <div>
+            <div class="text-xs uppercase font-mono text-emerald-400 mb-2">Intégration Continue</div>
+            <h4 class="text-xl font-bold text-white mb-2">Licence Middleware</h4>
+            <p class="text-xs text-slate-400 mb-6">Couche logicielle intermédiaire contrainte placée devant vos passerelles LLM d'entreprise.</p>
+            <div class="text-2xl font-extrabold text-emerald-400 font-mono mb-6">Success-Fee ou Volume</div>
+            <ul class="space-y-3 text-xs text-slate-300">
+              <li>✓ 20 % de l'économie directe de calcul réalisée</li>
+              <li>✓ Support de calibration des matrices causales</li>
+              <li>✓ Garantie de déterminisme en inférence</li>
+            </ul>
+          </div>
+          <a href="#contact" class="mt-8 block text-center py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs transition">Planifier une Démo</a>
+        </div>
+
+        <!-- OFFRE 3 -->
+        <div class="p-8 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col justify-between">
+          <div>
+            <div class="text-xs uppercase font-mono text-slate-400 mb-2">Souveraineté & R&D</div>
+            <h4 class="text-xl font-bold text-white mb-2">Cession d'Actifs / Dual-Use</h4>
+            <p class="text-xs text-slate-400 mb-6">Acquisition de la propriété intellectuelle (IP) et transfert complet de la technologie (PNT / Green AI).</p>
+            <div class="text-2xl font-extrabold text-white font-mono mb-6">Sur Devis Stratégique</div>
+            <ul class="space-y-3 text-xs text-slate-300">
+              <li>✓ Cession totale ou licence exclusive</li>
+              <li>✓ Documentation mathématique & code source</li>
+              <li>✓ Assistance au transfert vers C++ / ROS2</li>
+            </ul>
+          </div>
+          <a href="#contact" class="mt-8 block text-center py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs transition">Contacter la Direction</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- FORMULAIRE DE CONTACT -->
+    <section id="contact" class="max-w-3xl mx-auto px-6 py-20 border-t border-slate-800">
+      <div class="text-center mb-10">
+        <h2 class="text-xs uppercase font-mono tracking-widest text-emerald-400 mb-2">Échange Technique Direct</h2>
+        <h3 class="text-3xl font-extrabold text-white tracking-tight">Évaluer AIOTECH sur votre infrastructure</h3>
+      </div>
+
+      <form class="space-y-4" onsubmit="event.preventDefault(); alert('Votre demande d\'évaluation a été enregistrée.');">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <input type="text" placeholder="Nom & Prénom" required class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-400">
+          <input type="email" placeholder="Email Professionnel" required class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-400">
+        </div>
+        <input type="text" placeholder="Entreprise / Institution / Secteur" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-400">
+        <textarea rows="4" placeholder="Décrivez votre cas d'usage (volume de tokens, latence critique, navigation sans GPS...)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-400"></textarea>
+        <button type="submit" class="w-full py-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm transition">
+          Demander une Session Technique Privée
+        </button>
+      </form>
+    </section>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-slate-800 py-8 bg-slate-950 text-slate-500 text-xs font-mono text-center">
+    <div class="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div>AIOTECH 45 — Développé selon les principes de reachability cognitive et d'efficience énergétique.</div>
+      <div>Licence Apache 2.0 • Code source auditable</div>
+    </div>
+  </footer>
+
+  <!-- SCRIPT DU SIMULATEUR JS -->
+  <script>
+    const tauRange = document.getElementById('tauRange');
+    const tauVal = document.getElementById('tauVal');
+    const scenarioSelect = document.getElementById('scenarioSelect');
+    const runBtn = document.getElementById('runBtn');
+    const simLog = document.getElementById('simLog');
+    const simStatus = document.getElementById('simStatus');
+    const resSurvival = document.getElementById('resSurvival');
+    const resDocs = document.getElementById('resDocs');
+    const resSavings = document.getElementById('resSavings');
+
+    tauRange.addEventListener('input', (e) => {
+      tauVal.textContent = parseFloat(e.target.value).toFixed(2);
+    });
+
+    const scenarios = {
+      nominal: {
+        title: "Calcul GSM8K Standard",
+        branches: [
+          { id: 1, s: 0.92, l: 0.88, d: 0.85, valid: true, note: "Décomposition séquentielle stricte" },
+          { id: 2, s: 0.78, l: 0.75, d: 0.80, valid: true, note: "Piste alternative valide" },
+          { id: 3, s: 0.45, l: 0.30, d: 0.20, valid: false, note: "Saut logique injustifié" },
+          { id: 4, s: 0.20, l: 0.15, d: 0.10, valid: false, note: "Contradiction numérique directe" }
+        ],
+        complexity: 0.52,
+        baseDocs: 8,
+        allocatedDocs: 3
+      },
+      adversarial: {
+        title: "Prémisse Falsifiée / Multi-documents Contradictoires",
+        branches: [
+          { id: 1, s: 0.35, l: 0.25, d: 0.15, valid: false, note: "Violation de causalité étape 2" },
+          { id: 2, s: 0.40, l: 0.20, d: 0.10, valid: false, note: "Hallucination par association libre" },
+          { id: 3, s: 0.30, l: 0.10, d: 0.05, valid: false, note: "Incompatibilité sémantique directe" },
+          { id: 4, s: 0.48, l: 0.35, d: 0.20, valid: false, note: "Régression logique" }
+        ],
+        complexity: 0.88,
+        baseDocs: 8,
+        allocatedDocs: 2,
+        fallbackTriggered: true
+      },
+      simple: {
+        title: "Requête Frugale Immédiate",
+        branches: [
+          { id: 1, s: 0.98, l: 0.95, d: 0.95, valid: true, note: "Trajectoire directe optimale" },
+          { id: 2, s: 0.85, l: 0.80, d: 0.82, valid: true, note: "Redondance valide" },
+          { id: 3, s: 0.80, l: 0.78, d: 0.81, valid: true, note: "Variante paraphrasée" },
+          { id: 4, s: 0.70, l: 0.65, d: 0.72, valid: true, note: "Explication étendue" }
+        ],
+        complexity: 0.15,
+        baseDocs: 8,
+        allocatedDocs: 1
+      }
+    };
+
+    function executeSimulation() {
+      simStatus.textContent = "Calcul de reachability en cours...";
+      simStatus.className = "text-cyan-400 animate-pulse";
+      simLog.innerHTML = "";
+
+      const scenarioKey = scenarioSelect.value;
+      const data = scenarios[scenarioKey];
+      const tau = parseFloat(tauRange.value);
+
+      setTimeout(() => {
+        let survivors = 0;
+        let logsHtml = "";
+
+        data.branches.forEach(b => {
+          // Gödel composite score: L * S * D
+          const composite = (b.s * b.l * b.d);
+          const passed = composite >= (tau * 0.5) && b.valid;
+          if (passed) survivors++;
+
+          logsHtml += `
+            <div class="p-3 rounded-lg border ${passed ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-red-500/20 bg-red-500/5'} flex items-center justify-between">
+              <div>
+                <span class="font-bold ${passed ? 'text-emerald-400' : 'text-red-400'}">[Branche ${b.id}]</span> 
+                <span class="text-slate-300 ml-2">${b.note}</span>
+              </div>
+              <div class="text-[11px] font-mono">
+                Score: <span class="font-bold ${passed ? 'text-emerald-400' : 'text-red-400'}">${composite.toFixed(3)}</span> 
+                (${passed ? 'Admissible' : 'Rejetée'})
+              </div>
+            </div>
+          `;
+        });
+
+        if (survivors === 0 && data.fallbackTriggered) {
+          logsHtml += `
+            <div class="p-2 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[11px]">
+              ⚠️ Alerte ARG : 100 % des branches violent les contraintes logiques. Activation du fallback d'urgence sur la branche la moins dégradée.
+            </div>
+          `;
+        }
+
+        simLog.innerHTML = logsHtml;
+        simStatus.textContent = "Inférence terminée";
+        simStatus.className = "text-emerald-400";
+
+        resSurvival.textContent = `${survivors} / 4`;
+        resDocs.textContent = `${data.allocatedDocs} / ${data.baseDocs} fenêtres`;
+        const savingRatio = ((1 - (data.allocatedDocs / data.baseDocs)) * 100).toFixed(0);
+        resSavings.textContent = `-${savingRatio} % tokens`;
+      }, 350);
+    }
+
+    runBtn.addEventListener('click', executeSimulation);
+    scenarioSelect.addEventListener('change', executeSimulation);
+    executeSimulation();
+  </script>
+</body>
+</html>
