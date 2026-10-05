@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aiotech"
+version = "45.0.0"
+description = "Middleware LLM : raisonnement contraint (ARG, conjonction de Gödel) et économie de tokens"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.24"]
+
+[project.optional-dependencies]
+api = ["fastapi>=0.110", "uvicorn[standard]>=0.29", "pydantic>=2.6", "httpx>=0.27"]
+llm = ["litellm>=1.50", "python-dotenv>=1.0"]
+research = ["torch>=2.2"]
+test = ["pytest>=8.0"]
+
+[tool.setuptools.packages.find]
+include = ["aiotech*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

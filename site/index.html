@@ -1,0 +1,1335 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>AIOTECH 46</title>
+<meta name="description" content="AIOTECH 46 : middleware pour LLM qui n'envoie au modèle que les tokens justifiés. Pipeline, innovation ARG, démonstration et calcul des économies d'échelle.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Mise en page : scène 3D fixe en fond (le flux de tokens), récit en colonne gauche qui défile
+   au-dessus ; démonstration, calculateur et mesures sur des panneaux opaques pleine largeur. */
+:root {
+  color-scheme: dark;
+  /* Couleur : encre d'atelier bleutée, ambre "signal" = ce qui atteint le modèle */
+  --ink: #0e1319;
+  --panel: #151b23;
+  --panel-2: #1b2330;
+  --line: #273243;
+  --line-soft: #1f2835;
+  --fg: #e7ecf2;
+  --fg-2: #b4bfcc;
+  --muted: #8693a4;
+  --signal: #f0b24a;
+  --signal-ink: #1c1406;
+  --raw: #6f9fd8;
+  /* Séries de données (validées CVD sur --panel) */
+  --s-cost: #4f8fdc;
+  --s-save: #2aa889;
+  --s-aio: #c98500;
+  /* Statut */
+  --good: #0ca30c;
+  --warn: #fab219;
+  --critical: #d03b3b;
+  /* Typo */
+  --display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --gutter: clamp(16px, 4vw, 48px);
+  --maxw: 1180px;
+  --veil: 0;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0; background: var(--ink); color: var(--fg);
+  font: 400 1rem/1.6 var(--body);
+  -webkit-font-smoothing: antialiased; overflow-x: hidden;
+}
+a { color: var(--signal); text-underline-offset: 3px; }
+:focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; border-radius: 4px; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; }
+p { margin: 0; }
+code, .mono { font-family: var(--mono); font-size: .88em; }
+
+/* ── scène ─────────────────────────────────────────────────────────────── */
+#scene { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; display: block; }
+.veil { position: fixed; inset: 0; background: var(--ink); opacity: var(--veil); z-index: 0; pointer-events: none; }
+.labels { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.gate-label {
+  position: absolute; left: 0; top: 0; transform: translate(-50%, -100%);
+  font: 500 .72rem/1 var(--mono); letter-spacing: .08em; text-transform: uppercase;
+  color: var(--fg-2); white-space: nowrap; padding: 5px 8px; border-radius: 4px;
+  background: rgba(14,19,25,.72); border: 1px solid var(--line); transition: color .3s, border-color .3s, opacity .3s;
+}
+.gate-label.on { color: var(--signal); border-color: rgba(240,178,74,.55); }
+main, header, footer { position: relative; z-index: 1; }
+.wrap { max-width: var(--maxw); margin-inline: auto; padding-inline: var(--gutter); }
+
+/* ── en-tête ───────────────────────────────────────────────────────────── */
+header.top {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: rgba(14,19,25,.78); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line-soft);
+}
+.top .wrap { display: flex; align-items: center; gap: 24px; min-height: 60px; }
+.brand { display: flex; align-items: baseline; gap: 8px; text-decoration: none; color: var(--fg); }
+.brand b { font: 800 1.15rem/1 var(--display); font-stretch: 118%; letter-spacing: .02em; }
+.brand span { font: 500 .78rem/1 var(--mono); color: var(--signal); }
+.top nav { display: flex; gap: 20px; margin-left: auto; flex-wrap: wrap; }
+.top nav a { color: var(--fg-2); text-decoration: none; font-size: .9rem; }
+.top nav a:hover { color: var(--fg); }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px; border-radius: 8px; padding: 11px 18px;
+  font: 600 .95rem/1 var(--body); text-decoration: none; border: 1px solid transparent; cursor: pointer;
+}
+.btn-primary { background: var(--signal); color: var(--signal-ink); }
+.btn-primary:hover { background: #f5c26a; }
+.btn-ghost { color: var(--fg); border-color: var(--line); background: rgba(21,27,35,.7); }
+.btn-ghost:hover { border-color: var(--fg-2); }
+@media (max-width: 760px) { .top nav a:not(.keep) { display: none; } }
+
+/* ── héro ──────────────────────────────────────────────────────────────── */
+.hero { padding-block: clamp(56px, 11vw, 132px) clamp(48px, 7vw, 88px); position: relative; }
+.hero::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(90deg, rgba(14,19,25,.94) 0%, rgba(14,19,25,.7) 42%, rgba(14,19,25,0) 75%);
+}
+.eyebrow { font: 500 .78rem/1.2 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--signal); }
+.hero h1 {
+  font-size: clamp(2.3rem, 5.6vw, 4.6rem); font-weight: 800; font-stretch: 108%;
+  line-height: 1.02; letter-spacing: -.015em; max-width: 13ch; margin-top: 18px;
+}
+.hero h1 em { font-style: normal; color: var(--signal); }
+.lead { color: var(--fg-2); font-size: clamp(1.05rem, 1.6vw, 1.22rem); max-width: 56ch; margin-top: 22px; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+.proof { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin-top: 48px; max-width: 720px;
+  background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.proof div { background: rgba(21,27,35,.88); padding: 16px 18px; min-width: 0; }
+.proof b { display: block; font: 800 clamp(1.6rem, 3vw, 2.2rem)/1.05 var(--display); font-stretch: 110%; }
+.proof span { display: block; color: var(--fg-2); font-size: .88rem; margin-top: 6px; line-height: 1.4; }
+.footnote { color: var(--muted); font-size: .82rem; margin-top: 12px; max-width: 72ch; }
+@media (max-width: 620px) { .proof { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .hero::before { background: linear-gradient(180deg, rgba(14,19,25,.86), rgba(14,19,25,.7)); } }
+
+/* ── pipeline ──────────────────────────────────────────────────────────── */
+.section-head { max-width: 62ch; }
+.section-head h2 { font-size: clamp(1.8rem, 3.6vw, 2.8rem); font-weight: 800; font-stretch: 106%; line-height: 1.08; margin-top: 12px; }
+.section-head p { color: var(--fg-2); margin-top: 14px; }
+#pipeline { padding-top: clamp(40px, 6vw, 80px); }
+.steps { max-width: 470px; margin-top: 24px; }
+.step { min-height: 74vh; display: flex; align-items: center; padding-block: 24px; }
+.step:first-child { min-height: 60vh; }
+.step-card {
+  background: rgba(14,19,25,.82); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  border: 1px solid var(--line); border-radius: 12px; padding: 22px 24px; transition: border-color .35s, transform .35s;
+}
+.step.is-active .step-card { border-color: rgba(240,178,74,.6); }
+.step-n { font: 500 .78rem/1 var(--mono); color: var(--muted); letter-spacing: .1em; }
+.step.is-active .step-n { color: var(--signal); }
+.step h3 { font-size: 1.45rem; font-weight: 750; font-stretch: 112%; margin-top: 10px; }
+.step p { color: var(--fg-2); margin-top: 10px; }
+.step .effect { display: flex; gap: 10px; align-items: baseline; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line-soft); font-size: .9rem; }
+.step .effect b { color: var(--fg); font-weight: 600; }
+.step .file { display: block; margin-top: 10px; color: var(--muted); font: .78rem/1.3 var(--mono); }
+
+/* ── sections opaques ──────────────────────────────────────────────────── */
+.solid { background: var(--ink); border-top: 1px solid var(--line-soft); padding-block: clamp(64px, 9vw, 120px); }
+.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-top: 36px; }
+@media (max-width: 860px) { .grid-2 { grid-template-columns: 1fr; } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 24px; min-width: 0; }
+.panel h3 { font-size: 1.15rem; font-weight: 700; font-stretch: 108%; }
+.panel .tag { font: 500 .72rem/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.panel p { color: var(--fg-2); margin-top: 10px; font-size: .96rem; }
+.illus { width: 100%; height: auto; display: block; margin-top: 18px; }
+.formula {
+  margin-top: 20px; padding: 28px clamp(18px, 4vw, 40px); border-radius: 14px; border: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+}
+.formula .eq { font: 500 clamp(1.05rem, 2.4vw, 1.6rem)/1.5 var(--mono); color: var(--fg); overflow-x: auto; white-space: nowrap; padding-bottom: 4px; }
+.formula .eq .k { color: var(--signal); }
+.defs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 22px; }
+.defs div { min-width: 0; }
+.defs b { font: 600 .9rem/1.3 var(--mono); color: var(--fg); }
+.defs p { color: var(--fg-2); font-size: .92rem; margin-top: 6px; }
+@media (max-width: 760px) { .defs { grid-template-columns: 1fr; } }
+.note { margin-top: 18px; padding: 14px 16px; border-left: 3px solid var(--warn); background: rgba(250,178,25,.06); border-radius: 0 8px 8px 0; color: var(--fg-2); font-size: .93rem; }
+
+/* ── démo ARG ──────────────────────────────────────────────────────────── */
+.demo { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px; margin-top: 36px; }
+@media (max-width: 900px) { .demo { grid-template-columns: 1fr; } }
+label.lbl { display: block; font: 500 .75rem/1.2 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+input[type="text"], input[type="number"], select {
+  width: 100%; background: var(--ink); color: var(--fg); border: 1px solid var(--line); border-radius: 8px;
+  padding: 10px 12px; font: 400 .98rem/1.3 var(--body);
+}
+input[type="number"] { font-variant-numeric: tabular-nums; }
+input:focus, select:focus { border-color: var(--signal); outline: none; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.chip { background: var(--ink); border: 1px solid var(--line); color: var(--fg-2); border-radius: 999px; padding: 6px 12px; font: 500 .84rem/1.2 var(--body); cursor: pointer; text-align: left; }
+.chip:hover { border-color: var(--fg-2); color: var(--fg); }
+.field + .field { margin-top: 18px; }
+.verdict { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; font: 600 .85rem/1.2 var(--body); }
+.verdict.ok { background: rgba(12,163,12,.14); color: #7fdc7f; }
+.verdict.ko { background: rgba(250,178,25,.12); color: var(--warn); }
+.verdict svg { width: 15px; height: 15px; flex: none; }
+.gauges { display: grid; gap: 12px; margin-top: 18px; }
+.gauge { display: grid; grid-template-columns: 112px minmax(0, 1fr) 52px; gap: 12px; align-items: center; font-size: .9rem; }
+.gauge .name { color: var(--fg-2); }
+.gauge .val { font: 500 .88rem/1 var(--mono); text-align: right; font-variant-numeric: tabular-nums; }
+.track { position: relative; height: 10px; background: var(--ink); border-radius: 5px; border: 1px solid var(--line-soft); }
+.fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; background: var(--raw); transition: width .5s cubic-bezier(.2,.8,.2,1); }
+.gauge.min .fill { background: var(--signal); }
+.gauge.min .name { color: var(--fg); font-weight: 600; }
+.tau { position: absolute; top: -5px; bottom: -5px; width: 2px; background: var(--fg); left: 35%; }
+.tau-key { font-size: .8rem; color: var(--muted); margin-top: 8px; }
+.tokens { display: flex; flex-wrap: wrap; gap: 6px 20px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line-soft); align-items: baseline; }
+.tokens b { font: 800 1.9rem/1 var(--display); font-stretch: 108%; }
+.tokens span { color: var(--fg-2); font-size: .92rem; }
+.docs { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; margin-top: 20px; }
+.doc { border: 1px solid var(--line); border-radius: 10px; padding: 14px; background: var(--ink); transition: border-color .35s, background .35s, opacity .35s; min-width: 0; }
+.doc.sel { border-color: rgba(240,178,74,.7); background: rgba(240,178,74,.06); }
+.doc.out { opacity: .62; }
+.doc header { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.doc .src { font: 500 .78rem/1.2 var(--mono); color: var(--fg); overflow-wrap: anywhere; }
+.doc .state { font: 600 .72rem/1.2 var(--body); color: var(--muted); white-space: nowrap; }
+.doc.sel .state { color: var(--signal); }
+.doc p { color: var(--fg-2); font-size: .84rem; line-height: 1.5; margin-top: 8px; }
+.doc .m { display: flex; gap: 12px; margin-top: 10px; font: .74rem/1 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* ── calculateur ───────────────────────────────────────────────────────── */
+.calc { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 20px; margin-top: 36px; align-items: start; }
+@media (max-width: 980px) { .calc { grid-template-columns: 1fr; } }
+.controls { display: grid; gap: 22px; }
+.ctl-group { display: grid; gap: 12px; }
+.ctl-group > .gtitle { font: 600 .82rem/1.2 var(--body); color: var(--fg); padding-bottom: 6px; border-bottom: 1px solid var(--line-soft); }
+.row2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.row3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.ctl label { display: flex; justify-content: space-between; gap: 8px; font-size: .84rem; color: var(--fg-2); margin-bottom: 6px; }
+.ctl label output { font: 500 .84rem/1 var(--mono); color: var(--fg); font-variant-numeric: tabular-nums; }
+input[type="range"] { width: 100%; accent-color: var(--signal); }
+.hint { font-size: .78rem; color: var(--muted); margin-top: 4px; }
+.reset { background: none; border: 1px solid var(--line); color: var(--fg-2); border-radius: 8px; padding: 9px 14px; font: 500 .88rem/1 var(--body); cursor: pointer; justify-self: start; }
+.reset:hover { color: var(--fg); border-color: var(--fg-2); }
+.results { display: grid; gap: 16px; min-width: 0; }
+.hero-fig { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; }
+.hero-fig b { font: 800 clamp(2.6rem, 6vw, 4rem)/1 var(--display); font-stretch: 104%; color: var(--fg); letter-spacing: -.01em; }
+.hero-fig span { color: var(--fg-2); }
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-top: 16px; }
+.tiles div { background: var(--panel); padding: 14px 16px; min-width: 0; }
+.tiles .k { font-size: .8rem; color: var(--fg-2); line-height: 1.3; }
+.tiles .v { font: 700 1.25rem/1.2 var(--body); margin-top: 6px; overflow-wrap: anywhere; }
+@media (max-width: 720px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.chart-box { position: relative; }
+.chart-title { font: 600 1rem/1.3 var(--body); }
+.chart-sub { color: var(--muted); font-size: .85rem; margin-top: 4px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 12px; font-size: .84rem; color: var(--fg-2); }
+.legend i { display: inline-block; width: 14px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 7px; }
+.legend i.sq { width: 10px; height: 10px; border-radius: 2px; }
+svg.chart { display: block; width: 100%; height: auto; margin-top: 8px; overflow: visible; }
+svg.chart text { font-family: var(--body); }
+.tip {
+  position: absolute; pointer-events: none; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px;
+  padding: 10px 12px; font-size: .82rem; line-height: 1.5; color: var(--fg); min-width: 180px; box-shadow: 0 8px 24px rgba(0,0,0,.35);
+  opacity: 0; transition: opacity .12s; z-index: 3;
+}
+.tip.on { opacity: 1; }
+.tip .r { display: flex; justify-content: space-between; gap: 14px; font-variant-numeric: tabular-nums; }
+.tip .r span:first-child { color: var(--fg-2); }
+.tip i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+details.tbl { margin-top: 10px; }
+details.tbl summary { cursor: pointer; color: var(--fg-2); font-size: .88rem; }
+.tscroll { overflow-x: auto; margin-top: 10px; }
+table { border-collapse: collapse; width: 100%; font-size: .88rem; }
+th, td { text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--line-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
+th:first-child, td:first-child { text-align: left; }
+th { color: var(--muted); font-weight: 500; font-size: .8rem; }
+.assume { font-size: .84rem; color: var(--muted); margin-top: 14px; max-width: 80ch; }
+
+/* ── mesures / changements / code ──────────────────────────────────────── */
+.bench td.hl { color: var(--fg); font-weight: 600; }
+ul.plain { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 10px; }
+ul.plain li { color: var(--fg-2); font-size: .94rem; padding-left: 18px; position: relative; }
+ul.plain li::before { content: ""; position: absolute; left: 0; top: .62em; width: 8px; height: 2px; background: var(--muted); }
+ul.plain li b { color: var(--fg); font-weight: 600; }
+.changes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-top: 36px; }
+@media (max-width: 860px) { .changes { grid-template-columns: 1fr; } }
+pre.code { margin: 14px 0 0; background: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 16px; overflow-x: auto; font: .84rem/1.6 var(--mono); color: var(--fg-2); }
+pre.code .c { color: var(--muted); }
+footer.end { border-top: 1px solid var(--line-soft); background: var(--ink); padding-block: 36px; color: var(--muted); font-size: .88rem; }
+footer.end .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: space-between; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+</style>
+
+<canvas id="scene" aria-hidden="true"></canvas>
+<div class="veil" aria-hidden="true"></div>
+<div class="labels" id="labels" aria-hidden="true"></div>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#top"><b>AIOTECH</b><span>46</span></a>
+    <nav aria-label="Sections">
+      <a href="#pipeline">Pipeline</a>
+      <a href="#arg">Innovation</a>
+      <a href="#demo">Démo</a>
+      <a href="#economies" class="keep">Économies</a>
+      <a href="#mesures">Mesures</a>
+      <a href="#code">Code</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="wrap">
+      <div class="eyebrow">Middleware pour LLM</div>
+      <h1>Chaque token envoyé au modèle doit être <em>justifié</em>.</h1>
+      <p class="lead">AIOTECH se place entre vos applications et n'importe quel LLM. Avant chaque appel, il retire le contexte inutile, réutilise les réponses déjà calculées et choisit le modèle le moins cher capable de répondre. Vous ne payez que ce qui sert.</p>
+      <div class="cta">
+        <a class="btn btn-primary" href="#economies">Calculer vos économies</a>
+        <a class="btn btn-ghost" href="#pipeline">Suivre une requête</a>
+      </div>
+      <div class="proof" role="list">
+        <div role="listitem"><b>−85 %</b><span>de tokens de contexte envoyés au modèle</span></div>
+        <div role="listitem"><b>100 %</b><span>des documents utiles conservés</span></div>
+        <div role="listitem"><b>0</b><span>réponse erronée servie par le cache sur 3 000 requêtes</span></div>
+      </div>
+      <p class="footnote">Mesuré sur le corpus de test du dépôt (295 questions, 53 documents, aucun appel LLM). Détails et limites dans la section Mesures.</p>
+    </div>
+  </section>
+
+  <section id="pipeline">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="eyebrow">Le trajet d'une requête</div>
+        <h2>Sept contrôles avant que le modèle ne lise un seul token.</h2>
+        <p>Dans la scène, chaque point est un token. Les points bleus sont les documents candidats, les clairs la question. Ceux qui deviennent ambrés sont ceux qui atteignent le modèle.</p>
+      </div>
+      <div class="steps" id="steps">
+        <div class="step" data-gate="0"><div class="step-card">
+          <div class="step-n">ÉTAPE 1 / 7</div>
+          <h3>Garde-fous</h3>
+          <p>Les tentatives d'injection de prompt, en français comme en anglais, sont bloquées. Les e-mails, cartes bancaires (contrôle de Luhn), IBAN, adresses IP et téléphones sont masqués avant tout envoi.</p>
+          <div class="effect"><b>Effet</b><span>aucun token payé pour une requête bloquée</span></div>
+          <span class="file">aiotech/gateway/guardrails.py</span>
+        </div></div>
+        <div class="step" data-gate="1"><div class="step-card">
+          <div class="step-n">ÉTAPE 2 / 7</div>
+          <h3>ARG : le contexte justifié</h3>
+          <p>Vos documents sont découpés en segments. L'ARG ajoute un à un ceux qui couvrent la question et s'arrête quand les suivants n'apportent plus rien. Seuls ces segments partent au modèle.</p>
+          <div class="effect"><b>Effet</b><span>−85 % de tokens de contexte sur le corpus de test</span></div>
+          <span class="file">aiotech/reasoning/context_budget.py</span>
+        </div></div>
+        <div class="step" data-gate="2"><div class="step-card">
+          <div class="step-n">ÉTAPE 3 / 7</div>
+          <h3>Cache</h3>
+          <p>Une question équivalente, posée dans le même contexte, reçoit la réponse déjà calculée. Deux questions qui diffèrent par un identifiant (ORION-12 et ORION-13) ne partagent jamais de réponse.</p>
+          <div class="effect"><b>Effet</b><span>un appel en moins, 0 réponse erronée mesurée</span></div>
+          <span class="file">aiotech/gateway/cache.py</span>
+        </div></div>
+        <div class="step" data-gate="3"><div class="step-card">
+          <div class="step-n">ÉTAPE 4 / 7</div>
+          <h3>Routage de modèle</h3>
+          <p>La difficulté de la demande est estimée : longueur, vocabulaire de raisonnement, calculs, code, sous-questions. Une question simple part vers le modèle économique.</p>
+          <div class="effect"><b>Effet</b><span>Claude Haiku 4.5 coûte 4 fois moins que Claude Opus 5.5</span></div>
+          <span class="file">aiotech/gateway/router.py</span>
+        </div></div>
+        <div class="step" data-gate="4"><div class="step-card">
+          <div class="step-n">ÉTAPE 5 / 7</div>
+          <h3>Disjoncteur</h3>
+          <p>Après trois échecs d'un fournisseur, les requêtes partent vers un autre. Une seule requête test vérifie ensuite son rétablissement.</p>
+          <div class="effect"><b>Effet</b><span>pas de requêtes perdues pendant une panne</span></div>
+          <span class="file">aiotech/gateway/circuit_breaker.py</span>
+        </div></div>
+        <div class="step" data-gate="5"><div class="step-card">
+          <div class="step-n">ÉTAPE 6 / 7</div>
+          <h3>Appel au LLM</h3>
+          <p>Claude, GPT, Gemini, Mistral ou un modèle local via LiteLLM. Le modèle reçoit la question nettoyée et le contexte retenu, rien d'autre.</p>
+          <div class="effect"><b>Effet</b><span>coût réel calculé sur l'usage renvoyé par le fournisseur</span></div>
+          <span class="file">aiotech/gateway/client.py</span>
+        </div></div>
+        <div class="step" data-gate="6"><div class="step-card">
+          <div class="step-n">ÉTAPE 7 / 7</div>
+          <h3>Vérification et comptabilité</h3>
+          <p>Le JSON demandé est validé, avec relance si besoin. Chaque phrase de la réponse doit s'appuyer sur le contexte ou sur les phrases précédentes, et la plus faible est signalée. Le coût réel est comparé au coût de référence.</p>
+          <div class="effect"><b>Effet</b><span>économie chiffrée sur chaque réponse</span></div>
+          <span class="file">aiotech/reasoning/arg.py · verify_chain</span>
+        </div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="arg" class="solid">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="eyebrow">L'innovation</div>
+        <h2>De la sphère à l'ARG : garder l'échelle, décider par un « et » logique.</h2>
+        <p>AIOTECH 44 raisonnait sur une hypersphère. La version 46 remplace cette géométrie par l'ARG (Admissibility &amp; Reachability Gate), dont chaque critère a une unité et peut être vérifié.</p>
+      </div>
+      <div class="grid-2">
+        <div class="panel">
+          <div class="tag">Avant · AIOTECH 44</div>
+          <h3>Tout projeter sur la sphère unité</h3>
+          <svg class="illus" viewBox="0 0 320 230" role="img" aria-labelledby="sph-t">
+            <title id="sph-t">Deux vecteurs de même direction et de longueurs différentes aboutissent au même point une fois projetés sur le cercle unité.</title>
+            <line x1="20" y1="10" x2="34" y2="10" stroke="#6f9fd8" stroke-width="3" stroke-linecap="round"/>
+            <text x="42" y="14" fill="#b4bfcc" font-size="11">segment qui cite une fois le sujet</text>
+            <line x1="20" y1="28" x2="34" y2="28" stroke="#e7ecf2" stroke-width="3" stroke-linecap="round"/>
+            <text x="42" y="32" fill="#b4bfcc" font-size="11">segment qui le traite en entier</text>
+            <line x1="20" y1="140" x2="300" y2="140" stroke="#273243" stroke-width="1"/>
+            <line x1="110" y1="222" x2="110" y2="52" stroke="#273243" stroke-width="1"/>
+            <circle cx="110" cy="140" r="75" fill="none" stroke="#8693a4" stroke-width="1.5"/>
+            <line id="vShort" x1="110" y1="140" x2="140" y2="121" stroke="#6f9fd8" stroke-width="3" stroke-linecap="round"/>
+            <line id="vLong" x1="110" y1="140" x2="272" y2="39" stroke="#e7ecf2" stroke-width="3" stroke-linecap="round"/>
+            <circle id="vDot" cx="174" cy="100" r="6" fill="#f0b24a" opacity="0"/>
+            <text x="186" y="118" fill="#e7ecf2" font-size="11" id="vMsg" opacity="0">même point</text>
+          </svg>
+          <p>Normaliser chaque vecteur supprime sa longueur. Un segment qui mentionne une fois le sujet et un segment qui le traite en entier deviennent le même point. Les seuils n'ont plus d'unité, et les contraintes de la v44 étaient des vecteurs aléatoires.</p>
+        </div>
+        <div class="panel">
+          <div class="tag">Maintenant · AIOTECH 46</div>
+          <h3>Mesurer ce que le segment atteint de la question</h3>
+          <svg class="illus" viewBox="0 0 320 210" role="img" aria-labelledby="rch-t">
+            <title id="rch-t">Barres des traits de la question et part atteinte par le segment ; le déficit sur l'identifiant 12 fait baisser reach.</title>
+            <g id="reachBars"></g>
+            <text x="20" y="200" fill="#8693a4" font-size="11" id="reachCap">segment : fiche ORION-12</text>
+            <text x="300" y="200" fill="#e7ecf2" font-size="12" text-anchor="end" id="reachVal">reach = 1,00</text>
+          </svg>
+          <p><code>reach</code> mesure la part de la question que le segment atteint vraiment, en distance euclidienne et sans normalisation. Sur la fiche ORION-13, le trait « 12 » manque : le déficit apparaît et le score baisse.</p>
+        </div>
+      </div>
+      <div class="formula">
+        <div class="eq"><span class="k">A</span>(S) = min( reach(q, ∪S) , coverage(q, ∪S) , contraintes(S) ) ≥ <span class="k">τ</span></div>
+        <div class="defs">
+          <div><b>reach</b><p>1 − ‖relu(q − x)‖ / ‖q‖ : part de la masse euclidienne de la question atteinte par les segments retenus.</p></div>
+          <div><b>coverage</b><p>Part des mots de la question présents, pondérés par leur rareté : un identifiant comme « ORION-12 » compte plus que « module ».</p></div>
+          <div><b>contraintes</b><p>Termes requis, termes interdits, métadonnées. Un terme interdit présent donne 0, donc un rejet.</p></div>
+        </div>
+        <p class="footnote" style="margin-top:18px">Le minimum est la conjonction de Gödel : un seul critère défaillant suffit à rejeter. Le jugement porte sur l'ensemble S retenu. Pour une question qui compare deux produits, les deux fiches ensemble sont admissibles, alors qu'aucune ne l'est seule.</p>
+      </div>
+      <p class="note">La première version jugeait chaque segment isolément. Sur les questions comparatives, elle ne gardait qu'une fiche : rappel 0 %. Le banc de mesure l'a révélé avant la livraison. La sélection porte désormais sur l'ensemble, et le rappel est remonté à 100 %.</p>
+    </div>
+  </section>
+
+  <section id="demo" class="solid">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="eyebrow">Démonstration</div>
+        <h2>Posez une question, voyez ce qui part au modèle.</h2>
+        <p>Six documents de démonstration. L'ARG choisit les segments à envoyer avec le même algorithme que le paquet Python : portage JavaScript, avec un hachage FNV au lieu de BLAKE2.</p>
+      </div>
+      <div class="demo">
+        <div class="panel">
+          <div class="field">
+            <label class="lbl" for="q">Question</label>
+            <input type="text" id="q" value="Quel est le poids du module ORION-12 ?" autocomplete="off">
+            <div class="chips" id="chips">
+              <button class="chip" type="button">Quel est le poids du module ORION-12 ?</button>
+              <button class="chip" type="button">Lequel est le plus lourd : ORION-12 ou VEGA-21 ?</button>
+              <button class="chip" type="button">Sous combien de jours peut-on retourner une commande ?</button>
+              <button class="chip" type="button">Quel temps fera-t-il demain à Paris ?</button>
+            </div>
+          </div>
+          <div class="field">
+            <label class="lbl" for="forbid">Exclure les documents contenant</label>
+            <input type="text" id="forbid" placeholder="ex. Lyon" autocomplete="off">
+          </div>
+          <div style="margin-top:22px"><span class="verdict ok" id="verdict"></span></div>
+          <div class="gauges" id="gauges"></div>
+          <p class="tau-key">Le trait vertical marque τ = 0,35. La barre ambrée est le minimum : c'est elle qui décide.</p>
+          <div class="tokens"><b id="tokOut">–</b><span id="tokTxt">tokens envoyés</span></div>
+        </div>
+        <div class="panel">
+          <div class="tag">Corpus de démonstration</div>
+          <div class="docs" id="docs"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="economies" class="solid">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="eyebrow">Économies d'échelle</div>
+        <h2>Un coût fixe qui se dilue, un gain qui suit chaque requête.</h2>
+        <p>Le middleware coûte un montant fixe par mois (hébergement, maintenance) et presque rien par requête. Ce qu'il fait économiser croît avec le volume. Plus vous envoyez de requêtes, plus le coût par requête descend vers son plancher. Le seuil de rentabilité est le volume où les deux courbes se croisent.</p>
+      </div>
+      <div class="calc">
+        <div class="panel controls" id="controls">
+          <div class="ctl-group">
+            <div class="gtitle">Votre trafic</div>
+            <div class="ctl">
+              <label for="vol">Requêtes par mois <output id="volOut"></output></label>
+              <input type="range" id="vol" min="3" max="8" step="0.01" value="6">
+            </div>
+            <div class="row3">
+              <div class="ctl"><label for="pt">Prompt</label><input type="number" id="pt" min="0" step="10" value="400"></div>
+              <div class="ctl"><label for="ct">Contexte</label><input type="number" id="ct" min="0" step="100" value="3000"></div>
+              <div class="ctl"><label for="ot">Sortie</label><input type="number" id="ot" min="0" step="10" value="350"></div>
+            </div>
+            <p class="hint">Tokens moyens par requête.</p>
+          </div>
+          <div class="ctl-group">
+            <div class="gtitle">Modèles (USD par million de tokens)</div>
+            <div class="ctl"><label for="fm">Modèle phare</label>
+              <select id="fm"><option value="opus">Claude Opus 5.5 · 4 / 20</option><option value="fable">Claude Fable 5.1 · 10 / 50</option><option value="sonnet">Claude Sonnet 5.5 · 2 / 10</option><option value="custom">Personnalisé</option></select></div>
+            <div class="row2">
+              <div class="ctl"><label for="fin">Entrée</label><input type="number" id="fin" min="0" step="0.1" value="4"></div>
+              <div class="ctl"><label for="fout">Sortie</label><input type="number" id="fout" min="0" step="0.5" value="20"></div>
+            </div>
+            <div class="ctl"><label for="cm">Modèle économique</label>
+              <select id="cm"><option value="haiku">Claude Haiku 4.5 · 1 / 5</option><option value="sonnet">Claude Sonnet 5.5 · 2 / 10</option><option value="custom">Personnalisé</option></select></div>
+            <div class="row2">
+              <div class="ctl"><label for="cin">Entrée</label><input type="number" id="cin" min="0" step="0.1" value="1"></div>
+              <div class="ctl"><label for="cout">Sortie</label><input type="number" id="cout" min="0" step="0.5" value="5"></div>
+            </div>
+            <p class="hint">Tarifs publics de l'API Anthropic relevés le 25/09/2026.</p>
+          </div>
+          <div class="ctl-group">
+            <div class="gtitle">Leviers AIOTECH</div>
+            <div class="ctl"><label for="red">Réduction du contexte (ARG) <output id="redOut"></output></label>
+              <input type="range" id="red" min="0" max="0.9" step="0.01" value="0.5">
+              <p class="hint">Mesuré : 85 % sur le corpus de test. 50 % par défaut, par prudence.</p></div>
+            <div class="ctl"><label for="share">Part routée vers le modèle économique <output id="shareOut"></output></label>
+              <input type="range" id="share" min="0" max="0.9" step="0.01" value="0.4"></div>
+            <div class="ctl"><label for="hit">Réponses servies par le cache <output id="hitOut"></output></label>
+              <input type="range" id="hit" min="0" max="0.6" step="0.01" value="0.15">
+              <p class="hint">Dépend de la répétition de votre trafic. Le banc atteint 85 % sur un trafic très répétitif : ce n'est pas une prévision.</p></div>
+          </div>
+          <div class="ctl-group">
+            <div class="gtitle">Coût du middleware</div>
+            <div class="row2">
+              <div class="ctl"><label for="fix">Fixe, $ par mois</label><input type="number" id="fix" min="0" step="100" value="1500"></div>
+              <div class="ctl"><label for="var">$ pour 1 000 requêtes</label><input type="number" id="var" min="0" step="0.01" value="0.02"></div>
+            </div>
+          </div>
+          <button class="reset" type="button" id="reset">Revenir aux valeurs par défaut</button>
+        </div>
+
+        <div class="results">
+          <div class="panel">
+            <div class="tag">Économie mensuelle estimée</div>
+            <div class="hero-fig" style="margin-top:10px"><b id="savM">–</b><span id="savPct"></span></div>
+            <div class="tiles">
+              <div><div class="k">Sans AIOTECH, par mois</div><div class="v" id="c0">–</div></div>
+              <div><div class="k">Avec AIOTECH, par mois</div><div class="v" id="c1">–</div></div>
+              <div><div class="k">Économie par an</div><div class="v" id="savY">–</div></div>
+              <div><div class="k">Seuil de rentabilité</div><div class="v" id="be">–</div></div>
+            </div>
+          </div>
+          <div class="panel chart-box" id="lineBox">
+            <div class="chart-title">Coût pour 1 000 requêtes selon le volume mensuel</div>
+            <div class="chart-sub">Échelles logarithmiques. Le trait vertical gris marque votre volume.</div>
+            <div class="legend"><span><i style="background:var(--s-cost)"></i>Sans AIOTECH</span><span><i style="background:var(--s-aio)"></i>Avec AIOTECH</span></div>
+            <svg class="chart" id="lineChart" role="img" aria-label="Coût pour 1 000 requêtes selon le volume, avec et sans AIOTECH"></svg>
+            <div class="tip" id="lineTip"></div>
+          </div>
+          <div class="panel chart-box" id="wfBox">
+            <div class="chart-title">D'où vient l'économie, pour 1 000 requêtes</div>
+            <div class="chart-sub" id="wfSub">À votre volume mensuel.</div>
+            <div class="legend"><span><i class="sq" style="background:var(--s-cost)"></i>Coût</span><span><i class="sq" style="background:var(--s-save)"></i>Économie</span><span><i class="sq" style="background:var(--s-aio)"></i>Total avec AIOTECH</span></div>
+            <svg class="chart" id="wfChart" role="img" aria-label="Décomposition du coût pour 1 000 requêtes"></svg>
+            <div class="tip" id="wfTip"></div>
+            <details class="tbl">
+              <summary>Voir les valeurs en tableau</summary>
+              <div class="tscroll"><table id="tblWf"></table></div>
+              <div class="tscroll"><table id="tblVol"></table></div>
+            </details>
+          </div>
+          <p class="assume">Calcul : sans AIOTECH, chaque requête part au modèle phare avec tout le contexte. Avec AIOTECH, le contexte est réduit, une part des requêtes va au modèle économique, une part est servie par le cache, puis on ajoute le coût fixe et le coût variable du middleware. Les mêmes formules sont dans <code>aiotech/economics.py</code> et testées.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="mesures" class="solid">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="eyebrow">Mesures</div>
+        <h2>Ce qui a été mesuré, et ce qui ne l'a pas été.</h2>
+        <p>Corpus de test : 48 fiches produit quasi identiques et 5 politiques, 295 questions dont 48 comparent deux produits. Référence : les 8 meilleurs documents d'une recherche TF-IDF, envoyés en entier comme dans un RAG standard.</p>
+      </div>
+      <div class="grid-2">
+        <div class="panel">
+          <h3>Réduction du contexte (ARG)</h3>
+          <div class="tscroll"><table class="bench">
+            <thead><tr><th>Questions</th><th>Tokens réf.</th><th>Tokens ARG</th><th>Réduction</th><th>Rappel</th></tr></thead>
+            <tbody>
+              <tr><td>Toutes (295)</td><td>841</td><td>123</td><td class="hl">−85,4 %</td><td class="hl">100 %</td></tr>
+              <tr><td>Un document (247)</td><td>841</td><td>106</td><td>−87,4 %</td><td>100 %</td></tr>
+              <tr><td>Deux documents (48)</td><td>844</td><td>213</td><td>−74,8 %</td><td>100 %</td></tr>
+            </tbody>
+          </table></div>
+          <p>Rappel : tous les documents nécessaires à la réponse sont dans le contexte envoyé. La référence a aussi 100 %.</p>
+        </div>
+        <div class="panel">
+          <h3>Cache et garde sur les identifiants</h3>
+          <div class="tscroll"><table class="bench">
+            <thead><tr><th>Garde</th><th>Réponses du cache</th><th>Réponses erronées</th></tr></thead>
+            <tbody>
+              <tr><td>Activée (défaut)</td><td>85,5 %</td><td class="hl">0,00 %</td></tr>
+              <tr><td>Désactivée</td><td>87,8 %</td><td>4,23 %</td></tr>
+            </tbody>
+          </table></div>
+          <p>3 000 requêtes, loi de Zipf, 5 formulations par question. Sans la garde, la fiche ORION-12 aurait parfois répondu à la place d'ORION-13.</p>
+        </div>
+      </div>
+      <div class="panel" style="margin-top:20px">
+        <h3>Limites</h3>
+        <ul class="plain">
+          <li><b>Corpus synthétique et favorable.</b> Les candidats sont des fiches quasi identiques dont une ou deux seulement sont utiles. Sur vos documents, la réduction sera plus faible ; elle se mesure avec vos données.</li>
+          <li><b>Aucun LLM appelé.</b> Les bancs mesurent la sélection du contexte, pas la qualité finale des réponses. Il faut une évaluation avec votre modèle et vos questions.</li>
+          <li><b>Traits lexicaux.</b> Les flexions passent grâce à une racinisation légère (retourner, retournées). Une question formulée sans aucun mot du document (synonymes purs) passe moins bien. Des embeddings neuronaux peuvent être branchés, avec leur coût.</li>
+          <li><b>Exécution.</b> 55 tests réussis en Python 3.12 avec numpy. Les tests de l'API (FastAPI) et du module de recherche (PyTorch) sont écrits mais n'ont pas pu être exécutés dans l'environnement de livraison.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="changements" class="solid">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="eyebrow">Ce qui a changé</div>
+        <h2>Deux bases fusionnées, recodées et corrigées.</h2>
+      </div>
+      <div class="changes">
+        <div class="panel">
+          <div class="tag">Depuis AIOTECH 44</div>
+          <ul class="plain">
+            <li><b>Plantage au lancement corrigé.</b> Le cœur attendait 3 sorties de l'élagueur, qui en renvoyait 4.</li>
+            <li><b>Les documents retenus partent enfin au LLM.</b> Avant, ils n'étaient jamais transmis : l'économie annoncée n'existait pas.</li>
+            <li><b>Sphère retirée.</b> Plus de normalisation L2 ni de contraintes aléatoires : l'ARG, euclidien et logique.</li>
+            <li><b>Mesures réelles.</b> Les FLOPs « simulés » par une formule ont été remplacés par des bancs de tokens et de rappel.</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <div class="tag">Depuis aio-v3</div>
+          <ul class="plain">
+            <li><b>Exécution de code supprimée.</b> L'outil <code>run_python</code> exécutait le code produit par le modèle. Il est remplacé par une calculatrice sans exécution.</li>
+            <li><b>Administration protégée.</b> Les routes <code>/admin</code> n'avaient aucune authentification, et sans clé API les quotas ne s'appliquaient pas.</li>
+            <li><b>Cache réellement sémantique.</b> Avant, un vecteur aléatoire tiré d'un hachage. Les erreurs ne sont plus mises en cache.</li>
+            <li><b>Lecture de fichiers confinée.</b> <code>read_file</code> pouvait lire le fichier <code>.env</code> et ses clés API.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="code" class="solid">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="eyebrow">Code</div>
+        <h2>Un paquet Python, numpy pour seule dépendance du cœur.</h2>
+        <p>Livré dans l'archive <code>aiotech45.zip</code>. FastAPI, LiteLLM et PyTorch sont optionnels.</p>
+      </div>
+      <div class="grid-2">
+        <div class="panel">
+          <h3>Structure</h3>
+<pre class="code">aiotech/
+  reasoning/   <span class="c"># ARG, budget de contexte, agents</span>
+  gateway/     <span class="c"># garde-fous, cache, routage, disjoncteur, client</span>
+  economics.py <span class="c"># modèle d'économies d'échelle</span>
+  tenancy.py   <span class="c"># locataires, clés, quotas</span>
+  telemetry.py <span class="c"># métriques Prometheus</span>
+  research/    <span class="c"># version PyTorch différentiable (non entraînée)</span>
+  api/main.py  <span class="c"># API FastAPI</span>
+benchmarks/    <span class="c"># bancs + RESULTS.md</span>
+tests/         <span class="c"># 55 tests cœur + API + recherche</span></pre>
+        </div>
+        <div class="panel">
+          <h3>Démarrer</h3>
+<pre class="code">pip install -r requirements.txt
+pytest
+python examples/quickstart.py
+python -m benchmarks.bench_context
+
+<span class="c"># API (après pip install -r requirements-full.txt)</span>
+uvicorn aiotech.api.main:app --port 8000</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="end">
+  <div class="wrap">
+    <span>AIOTECH 46 · paquet <code>aiotech</code> 45.0.0</span>
+    <a href="https://github.com/albanfredon23/aiotech">github.com/albanfredon23/aiotech</a>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+"use strict";
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const $ = (id) => document.getElementById(id);
+const nf = (d) => new Intl.NumberFormat("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d });
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const smooth = (t) => t * t * (3 - 2 * t);
+
+/* ════════════════════════════════════════════════════════════════════════
+   1. Scène 3D : le flux de tokens à travers les portes
+   ════════════════════════════════════════════════════════════════════════ */
+const GATES = [
+  { x: -24, name: "Garde-fous" }, { x: -12, name: "ARG" }, { x: -2, name: "Cache" },
+  { x: 8, name: "Routage" }, { x: 16, name: "Disjoncteur" }, { x: 26, name: "LLM" },
+];
+const OUT_X = 34;
+let sceneApi = null;
+function initScene() {
+  if (!window.THREE) return null;
+  const canvas = $("scene");
+  let renderer;
+  try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" }); }
+  catch (e) { return null; }
+  const BG = new THREE.Color("#0e1319");
+  renderer.setClearColor(BG, 1);
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(BG, 0.017);
+  const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 300);
+  const mobile = Math.min(window.innerWidth, window.innerHeight) < 700;
+
+  // Portes : cadres rectangulaires dans le plan YZ (aucune sphère dans la scène)
+  const gateObjs = GATES.map((g, i) => {
+    const grp = new THREE.Group(); grp.position.x = g.x;
+    const h = i === 5 ? 0 : 4.6;
+    let frameMat = new THREE.LineBasicMaterial({ color: 0x3a4a60, transparent: true, opacity: 0.55 });
+    if (h) {
+      const pts = [[-h, -h], [h, -h], [h, h], [-h, h], [-h, -h]].map(([y, z]) => new THREE.Vector3(0, y, z));
+      grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), frameMat));
+      const tick = [];
+      for (const [sy, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+        tick.push(new THREE.Vector3(0, sy * (h + 0.6), sz * h), new THREE.Vector3(0, sy * h, sz * h));
+        tick.push(new THREE.Vector3(0, sy * h, sz * (h + 0.6)), new THREE.Vector3(0, sy * h, sz * h));
+      }
+      grp.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(tick), frameMat));
+      const plane = new THREE.Mesh(new THREE.PlaneGeometry(2 * h, 2 * h),
+        new THREE.MeshBasicMaterial({ color: 0x6f9fd8, transparent: true, opacity: 0.025, side: THREE.DoubleSide, depthWrite: false }));
+      plane.rotation.y = Math.PI / 2; grp.add(plane); grp.userData.plane = plane;
+      if (i === 1) { // treillis de l'ARG
+        const lat = [];
+        for (let k = -3; k <= 3; k++) {
+          const v = (k / 3.5) * h;
+          lat.push(new THREE.Vector3(0, v, -h), new THREE.Vector3(0, v, h), new THREE.Vector3(0, -h, v), new THREE.Vector3(0, h, v));
+        }
+        const latMat = new THREE.LineBasicMaterial({ color: 0x3a4a60, transparent: true, opacity: 0.25 });
+        grp.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(lat), latMat));
+        grp.userData.lat = latMat;
+      }
+      if (i === 2) { // réserve du cache, au-dessus
+        const box = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(2.2, 1.6, 2.2)), frameMat);
+        box.position.y = h + 3.2; grp.add(box);
+      }
+    } else { // LLM : deux blocs (modèle économique en bas, phare en haut)
+      const mk = (s, y) => { const m = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(s, s, s)), frameMat); m.position.y = y; grp.add(m); return m; };
+      grp.userData.cores = [mk(2.2, -1.8), mk(3.2, 1.8), mk(1.4, -1.8), mk(2.2, 1.8)];
+    }
+    grp.userData.frame = frameMat;
+    scene.add(grp);
+    return grp;
+  });
+
+  // Particules
+  const N = mobile ? 1100 : 2600;
+  const geo = new THREE.BufferGeometry();
+  const P = new Float32Array(N * 3), C = new Float32Array(N * 3), A = new Float32Array(N), S = new Float32Array(N);
+  geo.setAttribute("position", new THREE.BufferAttribute(P, 3));
+  geo.setAttribute("color", new THREE.BufferAttribute(C, 3));
+  geo.setAttribute("alpha", new THREE.BufferAttribute(A, 1));
+  geo.setAttribute("size", new THREE.BufferAttribute(S, 1));
+  const mat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    uniforms: { uScale: { value: 1 } },
+    vertexShader: `attribute float alpha; attribute float size; attribute vec3 color; varying float vA; varying vec3 vC; uniform float uScale;
+      void main(){ vA = alpha; vC = color; vec4 mv = modelViewMatrix * vec4(position,1.0); gl_PointSize = size * uScale / -mv.z; gl_Position = projectionMatrix * mv; }`,
+    fragmentShader: `varying float vA; varying vec3 vC; void main(){ float d = length(gl_PointCoord - 0.5); float a = smoothstep(0.5, 0.05, d) * vA; if (a < 0.01) discard; gl_FragColor = vec4(vC * a, a); }`,
+  });
+  scene.add(new THREE.Points(geo, mat));
+
+  const col = (h) => new THREE.Color(h);
+  const K = { query: col("#e6edf6"), doc: col("#7fb0ea"), amber: col("#e0a540"), out: col("#f3c26b"),
+    dim: col("#3a4554"), aqua: col("#2aa889"), red: col("#d03b3b") };
+  const st = {
+    x: new Float32Array(N), oy: new Float32Array(N), oz: new Float32Array(N), sp: new Float32Array(N),
+    kind: new Uint8Array(N), keep: new Uint8Array(N), cached: new Uint8Array(N), cheap: new Uint8Array(N),
+    state: new Uint8Array(N), t: new Float32Array(N), vx: new Float32Array(N), vy: new Float32Array(N), vz: new Float32Array(N),
+    y: new Float32Array(N), z: new Float32Array(N), c: new Float32Array(N * 3),
+  };
+  const X0 = -44, X1 = 40;
+  function spawn(i, x) {
+    const r = Math.sqrt(Math.random()), th = Math.random() * Math.PI * 2;
+    st.oy[i] = r * Math.cos(th); st.oz[i] = r * Math.sin(th);
+    st.sp[i] = 6 + Math.random() * 2.4;
+    const u = Math.random();
+    st.kind[i] = u < 0.03 ? 2 : (u < 0.3 ? 0 : 1);
+    st.keep[i] = st.kind[i] === 0 || Math.random() < 0.15 ? 1 : 0;
+    st.cached[i] = Math.random() < 0.15 ? 1 : 0;
+    st.cheap[i] = Math.random() < 0.4 ? 1 : 0;
+    st.state[i] = 0; st.t[i] = 0;
+    st.x[i] = x;
+    // remise en régime permanent : ceux qui auraient déjà quitté le flux repartent en amont
+    if (st.kind[i] === 2 && x > GATES[0].x) st.x[i] = X0 + Math.random() * (GATES[0].x - X0);
+    if (st.kind[i] === 1 && !st.keep[i] && x > GATES[1].x) st.x[i] = X0 + Math.random() * (GATES[1].x - X0);
+    if (st.keep[i] && st.cached[i] && st.kind[i] !== 2 && x > GATES[2].x) st.x[i] = X0 + Math.random() * (GATES[2].x - X0);
+    S[i] = (mobile ? 2.6 : 2.2) * (st.kind[i] === 0 ? 1.15 : 1) * (0.8 + Math.random() * 0.4);
+  }
+  for (let i = 0; i < N; i++) spawn(i, X0 + Math.random() * (X1 - X0));
+
+  function radius(x) {
+    if (x < GATES[1].x) return 3.6;
+    if (x < GATES[1].x + 3) return 3.6 - 2.3 * smooth((x - GATES[1].x) / 3);
+    if (x < GATES[5].x - 4) return 1.3;
+    if (x < GATES[5].x) return 1.3 - 0.9 * smooth((x - GATES[5].x + 4) / 4);
+    return 0.4;
+  }
+  function lane(x, cheap) {
+    const target = cheap ? -1.8 : 1.8;
+    if (x < GATES[3].x) return 0;
+    if (x < GATES[3].x + 3) return target * smooth((x - GATES[3].x) / 3);
+    if (x < GATES[5].x + 2) return target;
+    if (x < OUT_X - 2) return target * (1 - smooth((x - GATES[5].x - 2) / (OUT_X - 2 - GATES[5].x - 2)));
+    return 0;
+  }
+  const tmp = new THREE.Color();
+  function setColor(i, c) { st.c[i * 3] = c.r; st.c[i * 3 + 1] = c.g; st.c[i * 3 + 2] = c.b; }
+  function step(dt) {
+    for (let i = 0; i < N; i++) {
+      const s = st.state[i];
+      if (s === 0) {
+        const xPrev = st.x[i];
+        st.x[i] += st.sp[i] * dt;
+        const x = st.x[i];
+        const crossed = (gx) => xPrev < gx && x >= gx;
+        if (st.kind[i] === 2 && crossed(GATES[0].x)) { st.state[i] = 3; st.t[i] = 0; st.vx[i] = -3; st.vy[i] = (Math.random() - .5) * 2; st.vz[i] = (Math.random() - .5) * 2; }
+        else if (st.kind[i] === 1 && !st.keep[i] && crossed(GATES[1].x)) {
+          st.state[i] = 1; st.t[i] = 0; st.vx[i] = 1.2;
+          const k = 4 + Math.random() * 4; st.vy[i] = st.oy[i] * k + (Math.random() - .5) * 2; st.vz[i] = st.oz[i] * k + (Math.random() - .5) * 2;
+        } else if (st.cached[i] && st.kind[i] !== 2 && crossed(GATES[2].x)) { st.state[i] = 2; st.t[i] = 0; st.vx[i] = 0.6; st.vy[i] = 4.2; st.vz[i] = 0; }
+        const R = radius(x), L = lane(x, st.cheap[i]);
+        st.y[i] = st.oy[i] * R + L; st.z[i] = st.oz[i] * R;
+        setColor(i, x < GATES[1].x ? (st.kind[i] === 0 ? K.query : K.doc) : x < GATES[5].x ? K.amber : K.out);
+        A[i] = x > X1 - 4 ? clamp((X1 - x) / 4, 0, 1) : (x < X0 + 3 ? clamp((x - X0) / 3, 0, 1) : 1);
+        if (x > X1) spawn(i, X0);
+      } else {
+        st.t[i] += dt;
+        st.x[i] += st.vx[i] * dt; st.y[i] += st.vy[i] * dt; st.z[i] += st.vz[i] * dt;
+        const life = s === 1 ? 1.6 : (s === 2 ? 1.3 : 1.0);
+        const f = clamp(st.t[i] / life, 0, 1);
+        const target = s === 1 ? K.dim : (s === 2 ? K.aqua : K.red);
+        tmp.setRGB(st.c[i * 3], st.c[i * 3 + 1], st.c[i * 3 + 2]).lerp(target, Math.min(1, dt * 6));
+        setColor(i, tmp);
+        A[i] = 1 - f;
+        if (s === 2) st.vy[i] *= 0.985;
+        if (f >= 1) spawn(i, X0);
+      }
+      P[i * 3] = st.x[i]; P[i * 3 + 1] = st.y[i]; P[i * 3 + 2] = st.z[i];
+      C[i * 3] = st.c[i * 3]; C[i * 3 + 1] = st.c[i * 3 + 1]; C[i * 3 + 2] = st.c[i * 3 + 2];
+    }
+    geo.attributes.position.needsUpdate = true; geo.attributes.color.needsUpdate = true; geo.attributes.alpha.needsUpdate = true;
+  }
+
+  // Étiquettes DOM projetées
+  const labelsEl = $("labels");
+  const labels = GATES.map((g) => { const d = document.createElement("div"); d.className = "gate-label"; d.textContent = g.name; labelsEl.appendChild(d); return d; });
+  const v3 = new THREE.Vector3();
+
+  // Caméra pilotée par le défilement
+  const camPos = new THREE.Vector3(-14, 7, 30), camLook = new THREE.Vector3(2, 0, 0);
+  const tgtPos = camPos.clone(), tgtLook = camLook.clone();
+  // Grand écran : le texte occupe la gauche, la caméra vise à gauche du sujet pour le placer à droite.
+  let HERO, AFTER, STEP;
+  function rig() {
+    const wide = window.innerWidth / window.innerHeight > 1.15 && window.innerWidth > 900;
+    HERO = wide ? { p: [-34, 9, 30], l: [-18, 1, 0] } : { p: [-14, 10, 40], l: [2, 0, 0] };
+    AFTER = { p: [2, 24, 52], l: [4, 0, 0] };
+    STEP = GATES.map((g) => (wide ? { p: [g.x - 13, 6, 21], l: [g.x - 7, 0.5, 0] } : { p: [g.x - 9, 6.5, 22], l: [g.x + 1, 0.5, 0] }));
+    STEP.push(wide ? { p: [OUT_X - 12, 6, 21], l: [OUT_X - 6, 0.5, 0] } : { p: [OUT_X - 8, 6.5, 22], l: [OUT_X + 1, 0.5, 0] });
+  }
+  rig();
+  const lerp3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  let active = -1, veil = 0, labelsOn = 1, mx = 0, my = 0, zone = "hero";
+  const stepEls = Array.from(document.querySelectorAll(".step"));
+  function updateScroll() {
+    const mid = window.innerHeight * 0.5;
+    const centers = stepEls.map((el) => { const r = el.getBoundingClientRect(); return r.top + r.height / 2; });
+    let cam, idx = -1;
+    if (mid < centers[0]) {
+      const hb = clamp((centers[0] - mid) / (window.innerHeight * 0.9), 0, 1);
+      cam = { p: lerp3(STEP[0].p, HERO.p, smooth(hb)), l: lerp3(STEP[0].l, HERO.l, smooth(hb)) };
+      idx = hb < 0.5 ? 0 : -1; veil = 0; zone = hb < 0.5 ? "pipe" : "hero";
+    } else if (mid >= centers[centers.length - 1]) {
+      const ab = clamp((mid - centers[centers.length - 1]) / (window.innerHeight * 0.8), 0, 1);
+      const last = STEP[STEP.length - 1];
+      cam = { p: lerp3(last.p, AFTER.p, smooth(ab)), l: lerp3(last.l, AFTER.l, smooth(ab)) };
+      idx = ab < 0.5 ? STEP.length - 1 : -1; veil = 0.82 * smooth(ab); zone = ab < 0.5 ? "pipe" : "after";
+    } else {
+      zone = "pipe";
+      let k = 0; while (k < centers.length - 1 && mid >= centers[k + 1]) k++;
+      const f = smooth(clamp((mid - centers[k]) / (centers[k + 1] - centers[k]), 0, 1));
+      cam = { p: lerp3(STEP[k].p, STEP[k + 1].p, f), l: lerp3(STEP[k].l, STEP[k + 1].l, f) };
+      idx = f < 0.5 ? k : k + 1; veil = 0;
+    }
+    tgtPos.set(...cam.p); tgtLook.set(...cam.l);
+    document.documentElement.style.setProperty("--veil", veil.toFixed(3));
+    labelsOn = 1 - veil / 0.82;
+    if (idx !== active) {
+      active = idx;
+      stepEls.forEach((el, i) => el.classList.toggle("is-active", i === active));
+      gateObjs.forEach((g, i) => {
+        const on = i === active || (active === 6 && i === 5);
+        g.userData.frame.color.set(on ? 0xf0b24a : 0x3a4a60); g.userData.frame.opacity = on ? 0.95 : 0.55;
+        if (g.userData.plane) g.userData.plane.material.opacity = on ? 0.06 : 0.025;
+        if (g.userData.lat) { g.userData.lat.color.set(on ? 0xf0b24a : 0x3a4a60); g.userData.lat.opacity = on ? 0.4 : 0.25; }
+        labels[i].classList.toggle("on", on);
+      });
+    }
+  }
+  function resize() {
+    const w = window.innerWidth, h = window.innerHeight;
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
+    renderer.setPixelRatio(dpr); renderer.setSize(w, h, false);
+    camera.aspect = w / h; camera.fov = w / h < 0.8 ? 62 : 48; camera.updateProjectionMatrix();
+    mat.uniforms.uScale.value = h * dpr * 0.1;
+    rig();
+  }
+  window.addEventListener("resize", resize);
+  window.addEventListener("pointermove", (e) => { mx = e.clientX / window.innerWidth - 0.5; my = e.clientY / window.innerHeight - 0.5; }, { passive: true });
+  resize(); updateScroll();
+  camPos.copy(tgtPos); camLook.copy(tgtLook);
+
+  let last = performance.now(), time = 0, running = true;
+  function frame(now) {
+    if (!running) return;
+    const dt = Math.min(0.05, (now - last) / 1000); last = now; time += dt;
+    updateScroll();
+    if (!reduceMotion) step(dt);
+    const k = reduceMotion ? 1 : 1 - Math.pow(0.0025, dt);
+    camPos.lerp(tgtPos, k); camLook.lerp(tgtLook, k);
+    camera.position.set(camPos.x + mx * 1.6 + (reduceMotion ? 0 : Math.sin(time * 0.12) * 0.6), camPos.y - my * 1.0, camPos.z);
+    camera.lookAt(camLook);
+    const cores = gateObjs[5].userData.cores;
+    if (cores && !reduceMotion) cores.forEach((c, i) => { c.rotation.x += dt * (0.15 + i * 0.05); c.rotation.y += dt * (0.22 - i * 0.03); });
+    renderer.render(scene, camera);
+    // Écran étroit : le texte couvre toute la largeur, on n'affiche que l'étiquette de l'étape en cours.
+    const narrow = window.innerWidth <= 900;
+    GATES.forEach((g, i) => {
+      v3.set(g.x, i === 5 ? 4.6 : 5.6, 0).project(camera);
+      const vis = v3.z < 1 && Math.abs(v3.x) < 1.1 && Math.abs(v3.y) < 1.1 && (!narrow || (zone === "pipe" && (i === active || (active === 6 && i === 5))));
+      labels[i].style.opacity = vis ? labelsOn.toFixed(2) : "0";
+      labels[i].style.transform = `translate(${((v3.x + 1) / 2) * window.innerWidth}px, ${((1 - v3.y) / 2) * window.innerHeight}px) translate(-50%, -100%)`;
+    });
+    requestAnimationFrame(frame);
+  }
+  if (reduceMotion) { for (let i = 0; i < 40; i++) step(0.05); }
+  requestAnimationFrame(frame);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) running = false;
+    else if (!running) { running = true; last = performance.now(); requestAnimationFrame(frame); }
+  });
+  return { updateScroll };
+}
+try { sceneApi = initScene(); } catch (e) { console.warn("Scène 3D indisponible :", e); }
+if (!sceneApi) {
+  // Sans WebGL : les étapes restent lisibles, l'étape au centre de l'écran est mise en avant.
+  const stepEls = Array.from(document.querySelectorAll(".step"));
+  const io = new IntersectionObserver((es) => es.forEach((e) => e.target.classList.toggle("is-active", e.isIntersecting)), { rootMargin: "-45% 0px -45% 0px" });
+  stepEls.forEach((el) => io.observe(el));
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   2. Illustrations de la section « innovation »
+   ════════════════════════════════════════════════════════════════════════ */
+(function sphereAnim() {
+  const vS = $("vShort"), vL = $("vLong"), dot = $("vDot"), msg = $("vMsg");
+  const O = [110, 140], R = 75, dir = [0.85 / Math.hypot(0.85, 0.53), -0.53 / Math.hypot(0.85, 0.53)];
+  const tipAt = (len) => [O[0] + dir[0] * len, O[1] + dir[1] * len];
+  const p = tipAt(R); dot.setAttribute("cx", p[0].toFixed(1)); dot.setAttribute("cy", p[1].toFixed(1));
+  const t0 = performance.now();
+  function draw(now) {
+    const ph = ((now - t0) / 1000) % 6;
+    let f = ph < 1.5 ? 0 : ph < 3 ? smooth((ph - 1.5) / 1.5) : ph < 4.8 ? 1 : 1 - smooth((ph - 4.8) / 1.2);
+    if (reduceMotion) f = 1;
+    const sLen = 35 + (R - 35) * f, lLen = 190 + (R - 190) * f;
+    const a = tipAt(sLen), b = tipAt(lLen);
+    vS.setAttribute("x2", a[0].toFixed(1)); vS.setAttribute("y2", a[1].toFixed(1));
+    vL.setAttribute("x2", b[0].toFixed(1)); vL.setAttribute("y2", b[1].toFixed(1));
+    dot.setAttribute("opacity", f > 0.95 ? "1" : "0"); msg.setAttribute("opacity", f > 0.95 ? "1" : "0");
+    if (!reduceMotion) requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+})();
+
+(function reachAnim() {
+  const g = $("reachBars"), cap = $("reachCap"), val = $("reachVal");
+  const feats = ["poids", "module", "orion", "12", "kg"];
+  const q = [1, 1, 1, 1.2, 0.8];
+  const segs = [{ name: "fiche ORION-12", x: [1.1, 1.3, 1.1, 1.2, 1] }, { name: "fiche ORION-13", x: [1.1, 1.3, 1.1, 0, 1] }];
+  const NS = "http://www.w3.org/2000/svg";
+  const mk = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); g.appendChild(e); return e; };
+  const bw = 20, base = 168, scale = 70;
+  mk("line", { x1: 16, y1: base, x2: 304, y2: base, stroke: "#273243", "stroke-width": 1 });
+  const bars = feats.map((f, i) => {
+    const cx = 26 + i * 58;
+    const qb = mk("rect", { x: cx, y: base - q[i] * scale, width: bw, height: q[i] * scale, rx: 3, fill: "#e7ecf2", opacity: 0.85 });
+    const xb = mk("rect", { x: cx + bw + 3, y: base, width: bw, height: 0, rx: 3, fill: "#6f9fd8" });
+    const dfc = mk("rect", { x: cx, y: base - q[i] * scale, width: bw, height: 0, fill: "none", stroke: "#fab219", "stroke-width": 2, "stroke-dasharray": "3 3" });
+    const t = mk("text", { x: cx + bw + 1, y: base + 16, fill: "#b4bfcc", "font-size": 11, "text-anchor": "middle" }); t.textContent = f;
+    return { qb, xb, dfc, i };
+  });
+  const legend = [["question", 20, { fill: "#e7ecf2" }], ["segment", 110, { fill: "#6f9fd8" }], ["déficit", 196, { fill: "none", stroke: "#fab219", "stroke-dasharray": "3 3" }]];
+  legend.forEach(([name, x, style]) => {
+    mk("rect", { x, y: 8, width: 10, height: 10, rx: 2, ...style });
+    mk("text", { x: x + 16, y: 17, fill: "#b4bfcc", "font-size": 11 }).textContent = name;
+  });
+  const qn = Math.hypot(...q);
+  // f = 0 : fiche ORION-12 ; f = 1 : fiche ORION-13 (interpolation pour l'animation)
+  function show(f) {
+    let def2 = 0;
+    bars.forEach((b) => {
+      const h = (segs[0].x[b.i] + (segs[1].x[b.i] - segs[0].x[b.i]) * f) * scale;
+      b.xb.setAttribute("y", (base - h).toFixed(1)); b.xb.setAttribute("height", h.toFixed(1));
+      const d = Math.max(q[b.i] * scale - h, 0);
+      b.dfc.setAttribute("height", d.toFixed(1)); b.dfc.setAttribute("opacity", d > 1 ? 1 : 0);
+      def2 += Math.pow(d / scale, 2);
+    });
+    cap.textContent = "segment : " + segs[f < 0.5 ? 0 : 1].name;
+    val.textContent = "reach = " + nf(2).format(1 - Math.sqrt(def2) / qn);
+  }
+  const t0 = performance.now();
+  function loop(now) {
+    const ph = ((now - t0) / 1000) % 7;
+    show(ph < 3 ? 0 : ph < 4 ? smooth(ph - 3) : ph < 6.3 ? 1 : 1 - smooth((ph - 6.3) / 0.7));
+    requestAnimationFrame(loop);
+  }
+  if (reduceMotion) show(1); else requestAnimationFrame(loop);
+})();
+
+/* ════════════════════════════════════════════════════════════════════════
+   3. ARG en JavaScript (portage de aiotech/reasoning/arg.py + context_budget.py)
+   ════════════════════════════════════════════════════════════════════════ */
+const STOP = new Set(("a au aux avec ce ces cet cette dans de des du elle en et est etre il ils je la le les leur lui ma mais me meme mes moi mon ne nos notre nous on ou par pas pour qu que quel quelle quels quelles qui sa se ses son sont sur ta te tes toi ton tu un une vos votre vous y d l s n c j m t comment combien quoi ou quand pourquoi sous peut peuvent lequel laquelle lesquels lesquelles faire fait dire avoir plus moins tres aussi entre ainsi alors donc cela ceci ca chaque quelque the a an and are as at be by for from has have in is it its of on or that the to was were what which who whom why how with this these those do does did can could should would will about into than then there their them they also more less very").split(/\s+/));
+const SUFFIXES = ["issements", "issement", "atrices", "ateurs", "ations", "ements", "ement", "atrice", "ateur", "ation", "ances", "ences", "ance", "ence", "euses", "euse", "ites", "ite", "ives", "ive", "ees", "ers", "ent", "ee", "er", "ez", "es", "e", "s", "x"];
+const stem = (w) => { if (/[0-9]/.test(w)) return w; for (const s of SUFFIXES) if (w.endsWith(s) && w.length - s.length >= 4) return w.slice(0, -s.length); return w; };
+const normTxt = (t) => t.toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "");
+const words = (t) => normTxt(t).match(/[a-z0-9]+(?:[.,][0-9]+)?/g) || [];
+const contentWords = (t) => words(t).filter((w) => !STOP.has(w) && w.length > 1).map(stem);
+const estTokens = (t) => (t ? Math.max(1, Math.ceil(t.length / 4)) : 0);
+const DIM = 2048;
+function fnv(s) { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return h >>> 0; }
+function embed(text) {
+  const feats = new Map();
+  const add = (k, w) => feats.set(k, (feats.get(k) || 0) + w);
+  for (const w of words(text)) {
+    add("w:" + stem(w), 1.0);
+    const p = " " + w + " ";
+    for (let i = 0; i + 3 <= p.length; i++) add("c:" + p.slice(i, i + 3), 0.25);
+  }
+  const v = new Float32Array(DIM);
+  feats.forEach((tf, k) => { v[fnv(k) % DIM] += tf >= 1 ? 1 + Math.log(tf) : tf; });
+  return v;
+}
+function reach(q, x) {
+  let qn = 0, dn = 0;
+  for (let i = 0; i < DIM; i++) { qn += q[i] * q[i]; const d = q[i] - x[i]; if (d > 0) dn += d * d; }
+  if (qn === 0) return 1;
+  return clamp(1 - Math.sqrt(dn) / Math.sqrt(qn), 0, 1);
+}
+function argSelect(query, docs, forbidden, opts = {}) {
+  const tau = opts.tau ?? 0.35, entry = opts.entry ?? 0.10, minGain = opts.minGain ?? 0.08, maxChunks = opts.maxChunks ?? 8;
+  const qWords = contentWords(query);
+  const qVec = embed(qWords.length ? qWords.join(" ") : query);
+  const X = docs.map((d) => embed(d.text));
+  const sets = docs.map((d) => new Set(contentWords(d.text)));
+  const uniq = Array.from(new Set(qWords));
+  const n = docs.length, idf = {};
+  uniq.forEach((w) => { const df = sets.filter((s) => s.has(w)).length; idf[w] = Math.log((n + 1) / (df + 0.5)); });
+  const total = uniq.reduce((a, w) => a + idf[w], 0);
+  const coverage = (ws) => (!uniq.length || total <= 0 ? 1 : uniq.reduce((a, w) => a + (ws.has(w) ? idf[w] : 0), 0) / total);
+  const forb = forbidden && forbidden.trim() ? normTxt(forbidden.trim()) : "";
+  const scores = docs.map((d, i) => {
+    const r = reach(qVec, X[i]), c = coverage(sets[i]);
+    const con = forb && normTxt(d.text).includes(forb) ? 0 : 1;
+    return { i, reach: r, coverage: c, constraint: con, adm: Math.min(r, c, con), tokens: estTokens(d.text) };
+  });
+  const setReach = (idx) => { if (!idx.length) return 0; const u = new Float32Array(DIM); idx.forEach((j) => { const x = X[j]; for (let k = 0; k < DIM; k++) if (x[k] > u[k]) u[k] = x[k]; }); return reach(qVec, u); };
+  const setCov = (idx) => { const ws = new Set(); idx.forEach((j) => sets[j].forEach((w) => ws.add(w))); return coverage(ws); };
+  scores.forEach((s) => { s.eligible = s.constraint > 0 && s.adm >= entry; });
+  const pool = scores.filter((s) => s.eligible).map((s) => s.i);
+  const chosen = []; let cov = 0, rch = 0;
+  while (pool.length && chosen.length < maxChunks) {
+    let best = null, bk = null;
+    for (const i of pool) {
+      const gc = Math.round((setCov([...chosen, i]) - cov) * 1e6) / 1e6, gr = setReach([...chosen, i]) - rch;
+      const key = [gc, gr, scores[i].adm];
+      if (!bk || key[0] > bk[0] || (key[0] === bk[0] && (key[1] > bk[1] || (key[1] === bk[1] && key[2] > bk[2])))) { best = i; bk = key; }
+    }
+    const gain = chosen.length ? bk[0] : Math.max(bk[0], minGain);
+    if (gain < minGain) break;
+    chosen.push(best); pool.splice(pool.indexOf(best), 1);
+    cov = setCov(chosen); rch = setReach(chosen);
+  }
+  if (!chosen.length) { // repli : le moins dégradé, seulement s'il a un lien avec la question
+    const cand = scores.filter((s) => s.constraint > 0 && s.adm > 0).sort((a, b) => b.adm - a.adm)[0];
+    if (cand) chosen.push(cand.i);
+  }
+  const conMin = chosen.length ? Math.min(...chosen.map((j) => scores[j].constraint)) : 0;
+  const R = chosen.length ? setReach(chosen) : 0, Cv = chosen.length ? setCov(chosen) : 0;
+  const A = chosen.length ? Math.min(R, Cv, conMin) : 0;
+  const tokAll = scores.reduce((a, s) => a + s.tokens, 0), tokSel = chosen.reduce((a, j) => a + scores[j].tokens, 0);
+  return { scores, chosen: new Set(chosen), reach: R, coverage: Cv, constraint: conMin, A, fallback: A < tau, tokAll, tokSel, tau };
+}
+window.aiotechArg = argSelect; // exposé pour vérification
+
+const DOCS = [
+  { source: "fiche-orion-12", text: "Fiche technique du module ORION-12. Le module ORION-12 est conçu pour la régulation thermique. Poids : 4,2 kg. Matériau du boîtier : aluminium anodisé. Le module ORION-12 est fabriqué à Lyon et fourni par Delta Industries. Prix catalogue : 1 250 euros hors taxes. Garantie constructeur : 3 ans." },
+  { source: "fiche-orion-13", text: "Fiche technique du module ORION-13. Le module ORION-13 est conçu pour la ventilation de salles serveurs. Poids : 7,9 kg. Matériau du boîtier : acier inoxydable. Le module ORION-13 est fabriqué à Lille et fourni par Nordtech. Prix catalogue : 2 400 euros hors taxes. Garantie constructeur : 2 ans." },
+  { source: "fiche-vega-20", text: "Fiche technique du module VEGA-20. Le module VEGA-20 est conçu pour la filtration d'air. Poids : 5,1 kg. Matériau du boîtier : polymère renforcé. Le module VEGA-20 est fabriqué à Nantes et fourni par Méridien SA. Prix catalogue : 980 euros hors taxes. Garantie constructeur : 5 ans." },
+  { source: "fiche-vega-21", text: "Fiche technique du module VEGA-21. Le module VEGA-21 est conçu pour le pompage industriel. Poids : 6,4 kg. Matériau du boîtier : titane. Le module VEGA-21 est fabriqué à Grenoble et fourni par Atelier Brunel. Prix catalogue : 1 730 euros hors taxes. Garantie constructeur : 1 an." },
+  { source: "politique-retours", text: "Retours et remboursements. Les commandes peuvent être retournées sous 30 jours après livraison. Le remboursement est émis sous 10 jours ouvrés après réception du colis. Les produits sur mesure ne sont ni repris ni échangés." },
+  { source: "politique-livraison", text: "Livraison. La livraison standard prend 3 à 5 jours ouvrés en France métropolitaine. La livraison express en 24 heures coûte 19 euros. Les commandes passées avant 14 heures sont expédiées le jour même." },
+];
+const ICON_OK = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const ICON_WARN = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2l6.5 12h-13z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 6.5v3.5M8 12v.3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function runDemo() {
+  const q = $("q").value.trim() || " ";
+  const r = argSelect(q, DOCS, $("forbid").value);
+  const v = $("verdict");
+  v.className = "verdict " + (r.fallback ? "ko" : "ok");
+  v.innerHTML = r.fallback ? ICON_WARN + "Contexte insuffisant : signalé au client" : ICON_OK + "Ensemble admissible";
+  const rows = [["reach", r.reach], ["coverage", r.coverage], ["contraintes", r.constraint]];
+  const minV = Math.min(...rows.map((x) => x[1]));
+  let minDone = false;
+  $("gauges").innerHTML = rows.map(([name, val]) => {
+    const isMin = !minDone && val === minV; if (isMin) minDone = true;
+    return `<div class="gauge${isMin ? " min" : ""}"><span class="name">${name}</span><span class="track"><span class="fill" style="width:${(val * 100).toFixed(1)}%"></span><span class="tau"></span></span><span class="val">${nf(2).format(val)}</span></div>`;
+  }).join("") + `<div class="gauge min"><span class="name">A(S) = min</span><span class="track"><span class="fill" style="width:${(r.A * 100).toFixed(1)}%"></span><span class="tau"></span></span><span class="val">${nf(2).format(r.A)}</span></div>`;
+  const red = r.tokAll ? 1 - r.tokSel / r.tokAll : 0;
+  $("tokOut").textContent = r.tokSel + " / " + r.tokAll;
+  $("tokTxt").textContent = `tokens envoyés au modèle (−${nf(0).format(red * 100)} %)`;
+  $("docs").innerHTML = DOCS.map((d, i) => {
+    const s = r.scores[i], sel = r.chosen.has(i);
+    const state = sel ? "Retenu" : s.constraint === 0 ? "Exclu (contrainte)" : s.eligible ? "Redondant" : "Hors sujet";
+    return `<article class="doc ${sel ? "sel" : "out"}"><header><span class="src">${esc(d.source)}</span><span class="state">${state}</span></header><p>${esc(d.text)}</p><div class="m"><span>reach ${nf(2).format(s.reach)}</span><span>cov. ${nf(2).format(s.coverage)}</span><span>${s.tokens} tok.</span></div></article>`;
+  }).join("");
+}
+$("q").addEventListener("input", runDemo);
+$("forbid").addEventListener("input", runDemo);
+$("chips").addEventListener("click", (e) => { const b = e.target.closest(".chip"); if (b) { $("q").value = b.textContent; runDemo(); } });
+runDemo();
+
+/* ════════════════════════════════════════════════════════════════════════
+   4. Économies d'échelle (portage de aiotech/economics.py)
+   ════════════════════════════════════════════════════════════════════════ */
+const DEFAULTS = { vol: 6, pt: 400, ct: 3000, ot: 350, fm: "opus", fin: 4, fout: 20, cm: "haiku", cin: 1, cout: 5, red: 0.5, share: 0.4, hit: 0.15, fix: 1500, var: 0.02 };
+const PRESETS = { opus: [4, 20], fable: [10, 50], sonnet: [2, 10], haiku: [1, 5] };
+const num = (id) => { const v = parseFloat($(id).value); return Number.isFinite(v) && v >= 0 ? v : 0; };
+function scenario() {
+  return { n: Math.pow(10, num("vol")), prompt: num("pt"), context: num("ct"), output: num("ot"),
+    fin: num("fin"), fout: num("fout"), cin: num("cin"), cout: num("cout"),
+    hit: num("hit"), share: num("share"), red: num("red"), fixed: num("fix"), vari: num("var") / 1000 };
+}
+function unit(s) {
+  const base = ((s.prompt + s.context) * s.fin + s.output * s.fout) / 1e6;
+  const inAfter = s.prompt + (1 - s.red) * s.context;
+  const afterCtx = (inAfter * s.fin + s.output * s.fout) / 1e6;
+  const cheap = (inAfter * s.cin + s.output * s.cout) / 1e6;
+  const afterRoute = s.share * cheap + (1 - s.share) * afterCtx;
+  const llm = (1 - s.hit) * afterRoute;
+  return { base, afterCtx, afterRoute, llm };
+}
+function monthly(s) {
+  const u = unit(s), n = s.n;
+  const c0 = n * u.base, c1 = s.fixed + n * (s.vari + u.llm);
+  const gain = u.base - u.llm - s.vari;
+  return { u, c0, c1, sav: c0 - c1, pct: c0 > 0 ? (c0 - c1) / c0 : 0, gain, be: gain > 0 ? s.fixed / gain : null };
+}
+window.aiotechEconomics = (o) => monthly({ ...scenario(), ...o });
+
+const usd = (v, d) => {
+  const a = Math.abs(v);
+  const dd = d ?? (a >= 1000 ? 0 : a >= 10 ? 2 : a >= 1 ? 2 : 3);
+  return (v < 0 ? "−" : "") + nf(dd).format(a) + " $";
+};
+const nfm = (d) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: d });
+const vol = (n) => n >= 1e6 ? nfm(n >= 1e7 ? 0 : 1).format(n / 1e6) + " M" : n >= 1e3 ? nfm(n >= 1e4 ? 0 : 1).format(n / 1e3) + " k" : nfm(0).format(n);
+const pct = (v) => nf(0).format(v * 100) + " %";
+
+const NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs, parent, text) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; if (parent) parent.appendChild(e); return e; }
+const css = getComputedStyle(document.documentElement);
+const tok = (n) => css.getPropertyValue(n).trim();
+const C = { cost: tok("--s-cost"), save: tok("--s-save"), aio: tok("--s-aio"), fg: tok("--fg"), fg2: tok("--fg-2"), muted: tok("--muted"), line: tok("--line"), soft: tok("--line-soft"), panel: tok("--panel") };
+
+function drawLine(s, m) {
+  const svg = $("lineChart"), box = $("lineBox"), tip = $("lineTip");
+  const W = Math.max(300, svg.clientWidth || box.clientWidth - 48), H = W < 520 ? 260 : 300;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.innerHTML = "";
+  const pad = { l: 56, r: W < 520 ? 16 : 104, t: 14, b: 34 };
+  const pw = W - pad.l - pad.r, ph = H - pad.t - pad.b;
+  const base1k = m.u.base * 1000;
+  const aio1k = (n) => (s.fixed / n + s.vari + m.u.llm) * 1000;
+  const vals = [base1k, aio1k(1e3), aio1k(1e8)].filter((v) => v > 0);
+  const lo = Math.floor(Math.log10(Math.max(1e-4, Math.min(...vals)))), hi = Math.ceil(Math.log10(Math.max(1e-3, Math.max(...vals)) * 1.0001));
+  const yMin = lo, yMax = Math.max(hi, lo + 1);
+  const X = (n) => pad.l + ((Math.log10(n) - 3) / 5) * pw;
+  const Y = (v) => pad.t + (1 - (Math.log10(Math.max(v, Math.pow(10, yMin))) - yMin) / (yMax - yMin)) * ph;
+  const g = el("g", {}, svg);
+  for (let e = yMin; e <= yMax; e++) {
+    const y = Y(Math.pow(10, e));
+    el("line", { x1: pad.l, x2: pad.l + pw, y1: y, y2: y, stroke: C.soft, "stroke-width": 1 }, g);
+    const v = Math.pow(10, e);
+    el("text", { x: pad.l - 8, y: y + 4, fill: C.muted, "font-size": 11, "text-anchor": "end" }, g, (v < 1 ? nf(Math.max(0, -e)).format(v) : nf(0).format(v)) + " $");
+  }
+  for (let e = 3; e <= 8; e++) {
+    const x = X(Math.pow(10, e));
+    el("line", { x1: x, x2: x, y1: pad.t + ph, y2: pad.t + ph + 4, stroke: C.line }, g);
+    el("text", { x, y: pad.t + ph + 20, fill: C.muted, "font-size": 11, "text-anchor": "middle" }, g, vol(Math.pow(10, e)));
+  }
+  el("line", { x1: pad.l, x2: pad.l + pw, y1: pad.t + ph, y2: pad.t + ph, stroke: C.line, "stroke-width": 1 }, g);
+  // seuil de rentabilité
+  if (m.be && m.be >= 1e3 && m.be <= 1e8) {
+    const bx = X(m.be);
+    el("line", { x1: bx, x2: bx, y1: pad.t, y2: pad.t + ph, stroke: C.fg2, "stroke-width": 1, opacity: 0.6 }, g);
+    el("text", { x: bx + 6, y: pad.t + 12, fill: C.fg2, "font-size": 11 }, g, "seuil " + vol(m.be));
+  }
+  // votre volume
+  const cx = X(s.n);
+  el("line", { x1: cx, x2: cx, y1: pad.t, y2: pad.t + ph, stroke: C.muted, "stroke-width": 1, opacity: 0.8 }, g);
+  // séries
+  const pts = []; for (let i = 0; i <= 120; i++) { const n = Math.pow(10, 3 + (5 * i) / 120); pts.push([X(n), Y(aio1k(n))]); }
+  el("path", { d: `M${pts.map((p) => p.join(",")).join("L")}L${pad.l + pw},${pad.t + ph}L${pad.l},${pad.t + ph}Z`, fill: C.aio, opacity: 0.08 }, g);
+  el("line", { x1: pad.l, x2: pad.l + pw, y1: Y(base1k), y2: Y(base1k), stroke: C.cost, "stroke-width": 2, "stroke-linecap": "round" }, g);
+  el("path", { d: "M" + pts.map((p) => p[0].toFixed(1) + "," + p[1].toFixed(1)).join("L"), fill: "none", stroke: C.aio, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, g);
+  // marqueurs à votre volume
+  el("circle", { cx, cy: Y(base1k), r: 5, fill: C.cost, stroke: C.panel, "stroke-width": 2 }, g);
+  el("circle", { cx, cy: Y(aio1k(s.n)), r: 5, fill: C.aio, stroke: C.panel, "stroke-width": 2 }, g);
+  // étiquettes directes en bout de courbe
+  if (W >= 520) {
+    const ly1 = Y(base1k), ly2 = Y(aio1k(1e8));
+    let a = ly1, b = ly2; if (Math.abs(a - b) < 16) { if (a < b) { a -= 8; b += 8; } else { a += 8; b -= 8; } }
+    el("text", { x: pad.l + pw + 8, y: a + 4, fill: C.fg2, "font-size": 11.5 }, g, "Sans AIOTECH");
+    el("text", { x: pad.l + pw + 8, y: b + 4, fill: C.fg, "font-size": 11.5, "font-weight": 600 }, g, "Avec AIOTECH");
+  }
+  // survol
+  const cross = el("line", { x1: 0, x2: 0, y1: pad.t, y2: pad.t + ph, stroke: C.fg2, "stroke-width": 1, opacity: 0 }, svg);
+  const hit = el("rect", { x: pad.l, y: pad.t, width: pw, height: ph, fill: "transparent" }, svg);
+  const move = (ev) => {
+    const r = svg.getBoundingClientRect(), sx = W / r.width;
+    const px = clamp((ev.clientX - r.left) * sx, pad.l, pad.l + pw);
+    const n = Math.pow(10, 3 + ((px - pad.l) / pw) * 5);
+    cross.setAttribute("x1", px); cross.setAttribute("x2", px); cross.setAttribute("opacity", 0.7);
+    const a1 = aio1k(n), sv = n * (base1k - a1) / 1000;
+    tip.innerHTML = `<div style="font-weight:600;margin-bottom:4px">${vol(n)} requêtes / mois</div>
+      <div class="r"><span><i style="background:${C.cost}"></i>Sans AIOTECH</span><span>${usd(base1k)}</span></div>
+      <div class="r"><span><i style="background:${C.aio}"></i>Avec AIOTECH</span><span>${usd(a1)}</span></div>
+      <div class="r" style="margin-top:4px"><span>Économie / mois</span><span>${usd(sv, 0)}</span></div>`;
+    tip.classList.add("on");
+    const br = box.getBoundingClientRect(), tw = tip.offsetWidth;
+    let left = ev.clientX - br.left + 14; if (left + tw > br.width - 8) left = ev.clientX - br.left - tw - 14;
+    tip.style.left = Math.max(8, left) + "px"; tip.style.top = (ev.clientY - br.top - 20) + "px";
+  };
+  hit.addEventListener("pointermove", move);
+  hit.addEventListener("pointerdown", move);
+  hit.addEventListener("pointerleave", () => { tip.classList.remove("on"); cross.setAttribute("opacity", 0); });
+}
+
+function drawWaterfall(s, m) {
+  const svg = $("wfChart"), box = $("wfBox"), tip = $("wfTip");
+  const u = m.u, k = 1000;
+  const steps = [
+    { name: "Sans AIOTECH", kind: "total", v: u.base * k },
+    { name: "Contexte réduit (ARG)", kind: "save", v: -(u.base - u.afterCtx) * k },
+    { name: "Routage de modèle", kind: "save", v: -(u.afterCtx - u.afterRoute) * k },
+    { name: "Cache", kind: "save", v: -(u.afterRoute - u.llm) * k },
+    { name: "Middleware, variable", kind: "cost", v: s.vari * k },
+    { name: "Middleware, fixe réparti", kind: "cost", v: (s.fixed / s.n) * k },
+    { name: "Avec AIOTECH", kind: "aio", v: (m.c1 / s.n) * k },
+  ];
+  let run = 0;
+  steps.forEach((st) => { if (st.kind === "total" || st.kind === "aio") { st.a = 0; st.b = st.v; run = st.v; } else { st.a = run; st.b = run + st.v; run = st.b; } });
+  const W = Math.max(300, svg.clientWidth || box.clientWidth - 48);
+  const narrow = W < 560, labW = narrow ? 0 : 170, rowH = narrow ? 46 : 36, barH = 18;
+  const H = steps.length * rowH + 30;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.innerHTML = "";
+  const pad = { l: labW + 8, r: 86, t: 6 };
+  const pw = W - pad.l - pad.r;
+  const maxV = Math.max(...steps.map((x) => Math.max(x.a, x.b)), 1e-9);
+  const Xs = (v) => pad.l + (v / maxV) * pw;
+  const g = el("g", {}, svg);
+  const ticks = niceTicks(maxV, 4);
+  ticks.forEach((t) => { const x = Xs(t); el("line", { x1: x, x2: x, y1: pad.t, y2: H - 22, stroke: C.soft }, g); el("text", { x, y: H - 6, fill: C.muted, "font-size": 11, "text-anchor": "middle" }, g, usd(t, t < 10 && t % 1 ? 1 : 0)); });
+  el("line", { x1: Xs(0), x2: Xs(0), y1: pad.t, y2: H - 22, stroke: C.line }, g);
+  steps.forEach((st, i) => {
+    const yRow = pad.t + i * rowH;
+    const yBar = narrow ? yRow + 20 : yRow + (rowH - barH) / 2;
+    const x0 = Xs(Math.min(st.a, st.b)), x1 = Xs(Math.max(st.a, st.b));
+    const w = Math.max(1.5, x1 - x0);
+    const fill = st.kind === "save" ? C.save : st.kind === "aio" ? C.aio : C.cost;
+    const lblFill = st.kind === "aio" || st.kind === "total" ? C.fg : C.fg2, lblWeight = st.kind === "aio" ? 600 : 400;
+    if (narrow) el("text", { x: pad.l, y: yRow + 13, fill: lblFill, "font-size": 12, "font-weight": lblWeight }, g, st.name);
+    else el("text", { x: labW, y: yBar + 13, fill: lblFill, "font-size": 12.5, "text-anchor": "end", "font-weight": lblWeight }, g, st.name);
+    const bar = el("rect", { x: x0, y: yBar, width: w, height: barH, rx: 3, fill }, g);
+    const txt = (st.kind === "save" ? "−" : st.kind === "cost" ? "+" : "") + usd(Math.abs(st.v), Math.abs(st.v) < 1 ? 3 : 2);
+    el("text", { x: x1 + 8, y: yBar + 13, fill: st.kind === "aio" ? C.fg : C.fg2, "font-size": 12, "font-weight": st.kind === "aio" ? 600 : 400 }, g, txt);
+    if (i < steps.length - 1) {
+      const nx = Xs(st.b);
+      const nextY = narrow ? pad.t + (i + 1) * rowH + 20 : pad.t + (i + 1) * rowH + (rowH - barH) / 2;
+      el("line", { x1: nx, x2: nx, y1: yBar + barH, y2: nextY, stroke: C.muted, "stroke-width": 1, opacity: 0.5 }, g);
+    }
+    const hitR = el("rect", { x: pad.l - (narrow ? 0 : labW), y: yRow, width: W, height: rowH, fill: "transparent" }, g);
+    const show = (ev) => {
+      const share = st.kind === "save" ? ` · ${nf(1).format((Math.abs(st.v) / steps[0].v) * 100)} % du coût initial` : "";
+      tip.innerHTML = `<div style="font-weight:600;margin-bottom:2px">${st.name}</div><div class="r"><span><i style="background:${fill}"></i>Pour 1 000 requêtes</span><span>${txt}</span></div>${share ? `<div style="color:${C.fg2}">${share.slice(3)}</div>` : ""}`;
+      tip.classList.add("on");
+      const br = box.getBoundingClientRect(), tw = tip.offsetWidth;
+      let left = ev.clientX - br.left + 14; if (left + tw > br.width - 8) left = ev.clientX - br.left - tw - 14;
+      tip.style.left = Math.max(8, left) + "px"; tip.style.top = (ev.clientY - br.top - 20) + "px";
+      bar.setAttribute("opacity", 0.85);
+    };
+    hitR.addEventListener("pointermove", show); hitR.addEventListener("pointerdown", show);
+    hitR.addEventListener("pointerleave", () => { tip.classList.remove("on"); bar.setAttribute("opacity", 1); });
+  });
+  // tableaux
+  $("tblWf").innerHTML = `<thead><tr><th>Poste (pour 1 000 requêtes)</th><th>Montant</th></tr></thead><tbody>${steps.map((st) => `<tr><td>${st.name}</td><td>${(st.kind === "save" ? "−" : st.kind === "cost" ? "+" : "") + usd(Math.abs(st.v), 3)}</td></tr>`).join("")}</tbody>`;
+  const vols = [1e3, 1e4, 1e5, 1e6, 1e7, 1e8];
+  $("tblVol").innerHTML = `<thead><tr><th>Requêtes / mois</th><th>Sans AIOTECH</th><th>Avec AIOTECH</th><th>Économie / mois</th></tr></thead><tbody>${vols.map((n) => { const mm = monthly({ ...s, n }); return `<tr><td>${vol(n)}</td><td>${usd(mm.c0, 0)}</td><td>${usd(mm.c1, 0)}</td><td>${usd(mm.sav, 0)}</td></tr>`; }).join("")}</tbody>`;
+}
+function niceTicks(max, count) {
+  const raw = max / count, mag = Math.pow(10, Math.floor(Math.log10(raw))), r = raw / mag;
+  const stepV = (r < 1.5 ? 1 : r < 3 ? 2 : r < 7 ? 5 : 10) * mag;
+  const out = []; for (let v = 0; v <= max * 1.0001; v += stepV) out.push(Math.round(v / stepV) * stepV);
+  return out;
+}
+
+function updateCalc() {
+  const s = scenario(), m = monthly(s);
+  $("volOut").textContent = vol(s.n);
+  $("redOut").textContent = pct(s.red); $("shareOut").textContent = pct(s.share); $("hitOut").textContent = pct(s.hit);
+  $("savM").textContent = usd(m.sav, 0);
+  $("savPct").textContent = m.c0 > 0 ? (m.sav >= 0 ? `soit −${pct(m.pct)} sur la facture LLM` : "le middleware coûte plus qu'il ne rapporte à ce volume") : "";
+  $("c0").textContent = usd(m.c0, 0); $("c1").textContent = usd(m.c1, 0); $("savY").textContent = usd(12 * m.sav, 0);
+  $("be").textContent = m.be ? vol(m.be) + " req./mois" : "jamais rentable";
+  $("wfSub").textContent = `À ${vol(s.n)} requêtes par mois, le coût fixe pèse ${usd((s.fixed / s.n) * 1000, 3)} par tranche de 1 000.`;
+  drawLine(s, m); drawWaterfall(s, m);
+}
+function bindPreset(sel, a, b) {
+  $(sel).addEventListener("change", () => { const p = PRESETS[$(sel).value]; if (p) { $(a).value = p[0]; $(b).value = p[1]; } updateCalc(); });
+  [a, b].forEach((id) => $(id).addEventListener("input", () => { const p = PRESETS[$(sel).value]; if (p && (num(a) !== p[0] || num(b) !== p[1])) $(sel).value = "custom"; }));
+}
+bindPreset("fm", "fin", "fout"); bindPreset("cm", "cin", "cout");
+$("controls").addEventListener("input", updateCalc);
+$("reset").addEventListener("click", () => { for (const k in DEFAULTS) $(k).value = DEFAULTS[k]; updateCalc(); });
+let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(updateCalc, 120); });
+updateCalc();
+})();
+</script>
+
+</body>
+</html>

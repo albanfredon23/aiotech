@@ -1,43 +1,138 @@
-### 💡 Points Clés & Innovations
+# AIOTECH 45
 
-- **Calcul Adaptatif et Modulation de Graphe (`AdaptiveComputeGate`) :**
-  Évaluation dynamique de la complexité intrinsèque de la requête pour moduler la profondeur effective du calcul. Les requêtes élémentaires désactivent les nœuds latents superflus afin de réduire le volume des opérations matricielles en aval.
+[![CI](https://github.com/albanfredon23/aiotech/actions/workflows/ci.yml/badge.svg)](https://github.com/albanfredon23/aiotech/actions/workflows/ci.yml)
 
-- **Régularisation Géométrique Sphérique (`Spherical Constraint Graph - SCG`) :**
-  Projection unitaire des états sur l'hypersphère $\mathcal{S}^{D-1}$ pour contrôler le respect d'invariants formels. Le module pénalise continûment les violations de contraintes le long des trajectoires (relaxation sigmoïde à l'entraînement) et opère un élagage franc en inférence pour écarter les branches non admissibles.
+Middleware placé devant n'importe quel LLM (Claude, GPT, Gemini, Mistral, Ollama… via LiteLLM)
+pour **n'envoyer au modèle que ce qui est justifié** : le contexte documentaire utile, le
+modèle adapté à la difficulté, et aucune requête déjà résolue.
 
-- **Sélection Différentiable de Trajectoires (`DifferentiableBeamSearch`) :**
-  Génération et filtrage de trajectoires cognitives latentes. Le module emploie une relaxation par Gumbel-Softmax avec estimateur Straight-Through (STE) à l'entraînement pour assurer la propagation de l'autograd vers la tête de scoring, et bascule vers un Top-$k$ discret en inférence.
+AIOTECH 45 fusionne et recode :
+- **aiotech-main (AIOTECH 44)** : le raisonnement contraint, sans la projection sphérique ;
+- **aio-v3** : la passerelle de production (cache, routage, disjoncteur, garde-fous,
+  multi-locataires, télémétrie), corrigée.
 
-- **Allocation de Contexte Variable (`DifferentialMemoryAllocator`) :**
-  Dimensionnement dynamique de la fenêtre documentaire ($k$-dynamique) indexé sur l'admissibilité géométrique de la requête. Le contexte est tronqué physiquement ($k_{\max}$) puis injecté dans la tête de décision finale, limitant l'empreinte VRAM et le volume de calcul vectoriel.
+## Ce qui a changé : du raisonnement sphérique à l'ARG
 
-- **Inférence Neuro-Symbolique par Logique Continue (`NeuroSymbolicEngine`) :**
-  Approximation différentiable d'opérateurs logiques via une formulation lissée de la t-norme de Gödel (Log-Sum-Exp tempéré), permettant de combiner représentations vectorielles denses et contraintes logiques formelles.
+AIOTECH 44 projetait chaque état sur l'hypersphère unité (normalisation L2) et mesurait les
+violations par produit scalaire de vecteurs unitaires. L'échelle était jetée, les seuils
+n'avaient pas d'unité, et les contraintes étaient des vecteurs aléatoires.
 
-- **Routage et Adaptation en Ligne d'Agents Spécialisés (`DynamicAgentAllocator`) :**
-  Système d'experts hétérogènes (raisonnement, mathématiques, logique formelle, critique) avec calcul conditionnel strict : les experts sous le seuil d'activation sont court-circuités. Une règle de calibration en ligne actualise leurs priorités à partir du signal d'admissibilité SCG sans exiger de rétropropagation globale.
+L'**ARG (Admissibility & Reachability Gate)** ne normalise rien. Chaque critère a une unité
+explicite dans [0, 1] et l'admissibilité est leur **conjonction de Gödel** (un seul critère
+défaillant suffit à rejeter) :
 
----
+```
+A(S) = T_G( reach(q, ∪S), coverage(q, ∪S), contraintes(S) ) = min(...)      admissible ⇔ A(S) ≥ τ
 
-### 📊 Benchmarks & Évaluation Expérimentale
+reach(q, x)    = 1 − ‖relu(q − x)‖₂ / ‖q‖₂     part de la masse euclidienne de la requête atteinte
+coverage(q, x) = Σ IDF des mots de q présents dans x / Σ IDF des mots de q
+```
 
-#### Méthodologie d'Évaluation
-Le banc d'évaluation (`benchmarks/run_hardware_benchmark.py`) compare le middleware face à une baseline standard à calcul et contexte fixes. Les mesures matérielles sont réalisées selon un protocole expérimental contrôlé :
+- **Sélection de contexte** : ajout glouton du segment au plus grand gain de couverture,
+  arrêt quand les segments restants sont redondants. Seuls les segments retenus partent au LLM.
+- **Vérification de chaîne** : chaque étape de la réponse doit être atteignable depuis le
+  contexte et les étapes précédentes ; T_G = min des supports, le maillon le plus faible est
+  désigné (détecteur d'affirmations non fondées, heuristique lexicale).
+- **Routage d'agents** : affinité `reach` + taux de succès appris en ligne, admissibilité de Gödel.
 
-- **Latence GPU réelle :** Mesurée via des marqueurs `torch.cuda.Event` synchronisés (neutralisant les biais CPU et l'asynchronisme CUDA).
-- **Pic VRAM alloué :** Suivi via `torch.cuda.max_memory_allocated` avec réinitialisation du cache mémoire entre chaque inférence.
-- **Volume d'opérations (FLOPs) :** Comptabilisation des opérations élémentaires instrumentées via le PyTorch Profiler (`with_flops=True`).
-- **Respect des Contraintes (Admissibilité) :** Somme normalisée des violations angulaires résiduelles sur les trajectoires candidates.
+## Pipeline
 
-#### Résultats Obtenus (Simulation Synthétique)
+```
+requête → garde-fous → ARG (contexte) → cache → routage modèle → disjoncteur → LLM
+        → validation JSON → vérification de chaîne → comptabilité (coût réel vs référence)
+```
 
-| Métrique Évaluée | Baseline Fixe | AIOTECH44 (Complet) | Différence Observée | Statut de la Validation |
-| :--- | :--- | :--- | :--- | :--- |
-| **Documents / Contexte Retenu** | $N$ fixe (100 %) | $k$ dynamique (20–40 %) | -60 % à -80 % de volume | Validé (tronquage effectif) |
-| **Pic VRAM Alloué (KiB)** | Référence ($1.0\times$) | Réduit selon $k_{\max}$ | Réduction observable | Dépendant de la taille de lot |
-| **Charge de Calcul (FLOPs)** | 100 % (calcul continu) | Élagué par Porte + SCG | -35 % à -50 % (selon complexité) | Validé par profiling PyTorch |
-| **Taux de Violation SCG** | Élevé (non régularisé) | Élagué sous seuil d'énergie | Réduction drastique | Validé par filtre géométrique |
-| **Propagation du Gradient** | Ruptures sur Argmax/Top-$k$ | Flux continu (Gumbel STE) | Rétropropagation complète | Validé via test autograd unitaire |
+Chaque réponse renvoie `cost_usd`, `baseline_cost_usd` (modèle phare + tout le contexte) et
+`saved_usd`. Les tarifs Claude par défaut datent du 2026-09-25 (`aiotech/gateway/pricing.py`) ;
+les autres modèles se déclarent via `AIOTECH_PRICES`. Un modèle sans tarif a un coût `None` :
+aucun montant n'est inventé.
 
-> **Note de rigueur scientifique :** Les résultats préliminaires ci-dessus illustrent la réduction structurelle permise par l'allocation dynamique de budget mémoire et l'élagage géométrique sur tenseurs synthétiques. Une campagne de validation étendue sur benchmarks publics standardisés (GSM8K pour le raisonnement mathématique et Cora/PubMed pour le raisonnement sur graphes) est en cours de formalisation pour consolider les intervalles de confiance statistiques.
+## Résultats mesurés
+
+Voir [benchmarks/RESULTS.md](benchmarks/RESULTS.md). Sur le corpus de test (295 questions) :
+**-85 % de tokens de contexte à rappel identique (100 %)**, -75 % sur les questions à deux
+documents ; cache sans aucune réponse erronée grâce à la garde sur les identifiants (4,2 %
+d'erreurs sans elle). Corpus synthétique et favorable : ces chiffres valident la mécanique,
+pas un gain chez un client donné.
+
+## Installation
+
+```bash
+pip install -r requirements.txt          # cœur : numpy uniquement
+pip install -r requirements-full.txt     # API, fournisseurs LLM, PyTorch, tests
+cp .env.example .env
+pytest                                    # 55 tests cœur + API (FastAPI) + recherche (PyTorch)
+python -m benchmarks.bench_context
+python -m benchmarks.bench_cache
+uvicorn aiotech.api.main:app --port 8000
+```
+
+### Docker
+
+```bash
+cp .env.example .env          # clés fournisseurs + AIOTECH_ADMIN_TOKEN
+docker compose up -d --build  # API sur :8000, site AIOTECH 46 sur :8080
+docker build --target test .  # lance la suite de tests dans l'image
+```
+
+L'image tourne sous un utilisateur non root, persiste SQLite dans le volume `/data` et expose
+un contrôle de santé sur `/health`. `--build-arg WITH_TORCH=true` ajoute PyTorch (CPU) pour
+le module de recherche. La CI GitHub (`.github/workflows/ci.yml`) lance à chaque push tous les
+tests (cœur, API, PyTorch), les bancs de mesure, puis construit et démarre l'image.
+
+Le site statique est dans `site/index.html`.
+
+Utilisation en bibliothèque :
+
+```python
+from aiotech.gateway import AiotechClient
+
+client = AiotechClient()
+r = client.completion_sync(
+    [{"role": "user", "content": "Quel est le poids du module ORION-12 ?"}],
+    documents=[{"text": "...", "source": "fiche-orion-12"}, ...],
+    verify_chain=True,
+)
+print(r["content"], r["context"]["tokens_saved"], r["saved_usd"])
+```
+
+API : `POST /v1/query` (clé `X-API-Key`), `POST /v1/stream`, `POST /v1/economics`,
+`/admin/*` (jeton `X-Admin-Token`), `GET /metrics` (Prometheus), `GET /dashboard`.
+
+## Corrections apportées aux deux bases d'origine
+
+| Problème | Origine | Correction |
+|---|---|---|
+| Le cœur plantait (3 sorties attendues, 4 renvoyées) | 44 | Recodé, testé |
+| Les documents retenus n'étaient jamais envoyés au LLM : aucune économie réelle | 44 | Seuls les segments ARG partent au LLM, économie comptée |
+| Embeddings via projection aléatoire, graphe et contraintes `torch.randn` | 44 | Embeddings lexicaux déterministes, contraintes explicites |
+| FLOPs « simulés » par une formule inventée | 44 | Bancs mesurant tokens et rappel |
+| Les k documents gardés étaient les k premiers de la liste | 44 | Les k plus proches (recherche) / gain de couverture (passerelle) |
+| Cache « sémantique » = vecteur aléatoire d'un SHA-256 (exact déguisé) | v3 | Similarité lexicale réelle + garde identifiants + empreinte de contexte |
+| Les erreurs étaient mises en cache | v3 | Jamais |
+| `run_python` exécutait le code du LLM (`exec`) : exécution de code à distance | v3 | Remplacé par une calculatrice sur arbre syntaxique |
+| `read_file` lisait n'importe quel fichier (dont `.env`) | v3 | Confiné à `AIOTECH_TOOLS_DIR` |
+| Routes `/admin` sans authentification | v3 | Jeton d'administration obligatoire |
+| Sans en-tête `X-API-Key`, aucun quota | v3 | Clé obligatoire par défaut |
+| `/v1/stream` contournait garde-fous et quotas | v3 | Même contrôle que `/v1/query` |
+| Modèles Claude classés « openai » par le disjoncteur | v3 | Détection du fournisseur corrigée |
+| Recréer un locataire renvoyait une clé inutilisable | v3 | Noms uniques, erreur 409 |
+| Mémoire « persistante » en `:memory:` | v3 | Chemin `AIOTECH_DB_PATH` |
+| Chemin du tableau de bord codé en dur (`/home/claude/...`) | v3 | Relatif au paquet |
+| Export Prometheus invalide (TYPE dupliqués) | v3 | Une ligne TYPE par famille, type `summary` |
+| Fusion de couches linéaires à travers une activation (change la fonction) | v3 | Fusion seulement si strictement consécutives |
+| Modèles par défaut retirés (gpt-3.5-turbo, claude-3-5-sonnet-20241022) | v3 | Configurables, défauts Claude actuels |
+
+## Limites connues
+
+- L'ARG utilise des traits lexicaux avec une racinisation légère : les flexions passent
+  (retourner / retournées), une reformulation sans mot commun avec le document
+  (synonymes purs) passe moins bien. `LiteLLMEmbedder` permet de brancher des embeddings
+  neuronaux (payants), à intégrer au critère `reach`.
+- Le routage par complexité est une heuristique ; le seuil doit être calibré sur le trafic réel.
+- La vérification de chaîne détecte des affirmations sans appui lexical dans le contexte ;
+  elle ne prouve pas qu'une réponse est vraie.
+- `aiotech/research/` (PyTorch) est un module de recherche **non entraîné** : il a des tests de
+  formes et de gradients, il n'a pas de résultats. Il n'a pas pu être exécuté dans
+  l'environnement de livraison (PyTorch absent).
+- `tests/test_api.py` n'a pas pu être exécuté dans l'environnement de livraison (FastAPI absent).

@@ -1,0 +1,8 @@
+-r requirements.txt
+# Dépendances de l'image Docker (PyTorch et pytest sont ajoutés à part, voir Dockerfile)
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6
+httpx>=0.27
+litellm>=1.50
+python-dotenv>=1.0

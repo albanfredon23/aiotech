@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tests:
+    name: Tests (cœur, API, PyTorch)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Dépendances
+        run: |
+          pip install -r requirements-docker.txt "pytest>=8.0"
+          pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.2"
+      - name: Tests
+        env:
+          AIOTECH_OFFLINE: "1"
+          AIOTECH_NO_APP: "1"
+        run: python -m pytest -q -rs
+      - name: Bancs de mesure
+        run: |
+          python -m benchmarks.bench_context
+          python -m benchmarks.bench_cache
+
+  docker:
+    name: Image Docker
+    runs-on: ubuntu-latest
+    needs: tests
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construire et tester l'image
+        run: |
+          docker build --target test -t aiotech:test .
+          docker build -t aiotech:45 .
+      - name: Démarrer et interroger /health
+        run: |
+          docker run -d --name aiotech -p 8000:8000 -e AIOTECH_ADMIN_TOKEN=ci-token -e AIOTECH_OFFLINE=1 aiotech:45
+          for i in $(seq 1 30); do curl -fs http://127.0.0.1:8000/health && exit 0; sleep 1; done
+          docker logs aiotech
+          exit 1

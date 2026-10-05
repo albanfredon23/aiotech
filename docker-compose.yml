@@ -1,0 +1,30 @@
+# AIOTECH 45 : API (port 8000) + site AIOTECH 46 (port 8080)
+#   cp .env.example .env      puis renseigner les clés et AIOTECH_ADMIN_TOKEN
+#   docker compose up -d --build
+services:
+  api:
+    build: .
+    image: aiotech:45
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Imposés dans le conteneur, quelle que soit la valeur du .env
+      AIOTECH_DB_PATH: /data/aiotech.sqlite3
+      AIOTECH_TOOLS_DIR: /app/sandbox
+    ports:
+      - "8000:8000"
+    volumes:
+      - aiotech-data:/data
+    restart: unless-stopped
+
+  site:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./site:/usr/share/nginx/html:ro
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
+volumes:
+  aiotech-data:
