@@ -806,9 +806,8 @@ docker compose up -d --build
         <h2>Essai, licence ou preuve de concept.</h2>
         <p>Choisissez une offre et décrivez votre usage : vous recevez un devis sous 48 h ouvrées, puis la facture et votre clé de licence. L'audit rejoue 100 requêtes anonymisées de votre historique pour mesurer votre économie réelle. N'envoyez pas de requêtes ici : l'échantillon s'échange ensuite par un canal convenu.</p>
       </div>
-      <!-- Pour recevoir les demandes par e-mail : créer un formulaire sur formspree.io et coller son adresse
-           (https://formspree.io/f/xxxxxxxx) dans data-endpoint. Vide : la demande ouvre un ticket GitHub public. -->
-      <form class="panel contact" id="contactForm" data-endpoint="" method="post">
+      <!-- Demandes reçues par e-mail via Formspree (formulaire xjygkyaz du compte de l'éditeur). -->
+      <form class="panel contact" id="contactForm" action="https://formspree.io/f/xjygkyaz" method="post">
         <div class="ctl full"><label class="lbl" for="cf-demande">Demande</label>
           <select id="cf-demande" name="demande" required>
             <option value="essai">Essai gratuit (Community)</option>
@@ -830,7 +829,6 @@ docker compose up -d --build
         <input type="hidden" name="_subject" value="AIOTECH : nouvelle demande">
         <label class="consent full"><input type="checkbox" name="consentement" value="oui" required><span>J'accepte que ces informations soient utilisées pour répondre à ma demande.</span></label>
         <p class="privacy full">Données utilisées uniquement pour vous répondre et établir un devis, ni revendues ni utilisées pour de la prospection, conservées 12 mois au plus sans suite. Elles transitent par Formspree (États-Unis). Détails et exercice de vos droits : <a href="confidentialite.html">politique de confidentialité</a>. Commandes : <a href="cgv.html">conditions générales de vente</a>.</p>
-        <p class="hint full" id="contactMode" hidden>Envoi direct pas encore activé : la demande s'ouvrira en ticket GitHub public pré-rempli (compte GitHub requis), sans votre nom ni votre e-mail. N'y mettez aucune information confidentielle.</p>
         <div class="full"><button class="btn btn-primary" type="submit">Envoyer la demande</button></div>
         <p class="form-status full" id="contactStatus" role="status" aria-live="polite"></p>
       </form>
@@ -1526,39 +1524,39 @@ let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTime
 updateCalc();
 })();
 
-// Formulaire de contact : Formspree si data-endpoint est renseigné, sinon ticket GitHub pré-rempli.
+// Formulaire de contact : envoi à Formspree sans quitter la page. Si Formspree exige une vérification
+// (anti-robots) ou refuse l'envoi en arrière-plan, le formulaire est soumis normalement à son adresse.
 (() => {
   "use strict";
   const form = document.getElementById("contactForm");
   if (!form) return;
   const f = form.elements, status = document.getElementById("contactStatus");
-  const endpoint = (form.dataset.endpoint || "").trim();
-  const ISSUES = "https://github.com/albanfredon23/aiotech/issues/new";
-  if (!endpoint) document.getElementById("contactMode").hidden = false;
+  const btn = form.querySelector('button[type="submit"]');
   document.querySelectorAll("[data-req]").forEach((a) => a.addEventListener("click", () => { f.namedItem("demande").value = a.dataset.req; }));
   const say = (msg, kind) => { status.textContent = msg; status.dataset.kind = kind || ""; };
-  const label = (name) => f.namedItem(name).selectedOptions[0].textContent;
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (f.namedItem("_gotcha").value) return;
     if (!form.reportValidity()) return;
-    if (!endpoint) {
-      const org = f.namedItem("organisation").value.trim();
-      const body = `**Demande** : ${label("demande")}\n**Volume mensuel** : ${label("volume")}\n**Organisation** : ${org || "–"}\n\n${f.namedItem("message").value.trim()}`;
-      const title = `[${label("demande").split(" :")[0]}] ${org || "Demande"}`.slice(0, 120);
-      window.open(`${ISSUES}?${new URLSearchParams({ title, body })}`, "_blank", "noopener");
-      say("Un ticket GitHub pré-rempli s'est ouvert dans un nouvel onglet : relisez-le puis publiez-le.", "ok");
+    btn.disabled = true; say("Envoi en cours…");
+    let r;
+    try {
+      r = await fetch(form.action, { method: "POST", body: new FormData(form), headers: { Accept: "application/json" } });
+    } catch (err) {
+      btn.disabled = false;
+      say("Connexion impossible. Vérifiez votre réseau, ou écrivez à albanfredon23@gmail.com.", "err");
       return;
     }
-    const btn = form.querySelector('button[type="submit"]');
-    btn.disabled = true; say("Envoi en cours…");
-    try {
-      const r = await fetch(endpoint, { method: "POST", body: new FormData(form), headers: { Accept: "application/json" } });
-      if (!r.ok) throw new Error(String(r.status));
-      form.reset(); say("Merci, votre demande est envoyée. Réponse sous 48 h ouvrées.", "ok");
-    } catch (err) {
-      say("L'envoi a échoué. Réessayez dans un instant, ou ouvrez un ticket sur le dépôt GitHub.", "err");
-    } finally { btn.disabled = false; }
+    if (r.ok) { form.reset(); btn.disabled = false; say("Merci, votre demande est envoyée. Réponse sous 48 h ouvrées.", "ok"); return; }
+    let data = {};
+    try { data = await r.json(); } catch (err) { /* réponse non JSON */ }
+    const fields = (data.errors || []).filter((x) => x.field);
+    btn.disabled = false;
+    if (r.status === 422 && fields.length) {
+      say("À corriger : " + fields.map((x) => `${x.field} (${x.message})`).join(", ") + ".", "err");
+      return;
+    }
+    form.submit();
   });
 })();
 </script>
