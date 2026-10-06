@@ -80,7 +80,7 @@ requête → garde-fous → ARG (contexte) → cache → routage modèle → dis
 |---|---|---|
 | Garde-fous | Bloque les injections de prompt (FR/EN), masque e-mails, cartes, IBAN, IP, téléphones | `aiotech/gateway/guardrails.py` |
 | ARG | N'envoie que les segments de documents qui couvrent la question | `aiotech/reasoning/context_budget.py` |
-| Cache | Réutilise une réponse équivalente, jamais pour un identifiant différent | `aiotech/gateway/cache.py` |
+| Cache d'équivalence lexicale contextuelle | Réutilise la réponse d'une requête lexicalement équivalente dans le même contexte, jamais pour un identifiant différent | `aiotech/gateway/cache.py` |
 | Routage | Envoie les demandes simples au modèle économique | `aiotech/gateway/router.py` |
 | Disjoncteur | Bascule vers un autre fournisseur en cas de panne | `aiotech/gateway/circuit_breaker.py` |
 | Vérification | Valide le JSON, signale les phrases sans appui dans le contexte | `aiotech/reasoning/arg.py` |
@@ -107,6 +107,11 @@ reach(q, x)    = 1 − ‖relu(q − x)‖₂ / ‖q‖₂     part de la masse 
 coverage(q, x) = Σ IDF des mots de q présents dans x / Σ IDF des mots de q
 ```
 
+`q` et `x` vivent dans un **espace de traits lexicaux projeté** (`HashingEmbedder` : mots racinisés, bigrammes de mots et
+trigrammes de caractères, répartis par hachage sur 2 048 dimensions positives). Ce n'est ni un embedding
+neuronal ni un modèle de fondation : aucun appel réseau, résultat déterministe, coût nul. La « masse
+euclidienne » de `reach` est donc celle des traits lexicaux de la question.
+
 - **Sélection de contexte** : ajout glouton du segment au plus grand gain de couverture, arrêt
   quand les segments restants sont redondants. Le jugement porte sur l'ensemble S retenu : une
   question qui compare deux produits garde les deux fiches.
@@ -120,6 +125,12 @@ Le middleware a un coût fixe mensuel et un coût par requête quasi nul ; l'éc
 croît avec le volume. Le coût par requête baisse donc vers un plancher, et le seuil de rentabilité
 est le volume où il passe sous le coût sans middleware. Formules : `aiotech/economics.py` (testées),
 reprises à l'identique par le calculateur du [site](https://albanfredon23.github.io/aiotech/#economies).
+
+Les chiffres sont des **économies estimées** : le ROI réel dépend de la distribution de votre trafic,
+du taux de cache effectif et de la structure de vos requêtes. Les tarifs par défaut sont modifiables
+(calculateur, `AIOTECH_PRICES`) : vérifiez les tarifs actuels du fournisseur. Pour mesurer votre ROI
+réel, AIOTECH peut être testé sur 100 requêtes anonymisées de votre historique
+([formulaire de contact](https://albanfredon23.github.io/aiotech/#contact)).
 
 Exemple (scénario par défaut, hypothèses à remplacer par les vôtres) : 1 M requêtes par mois,
 3 000 tokens de contexte, Claude Opus 5.5 / Haiku 4.5 → **20 600 $ → 10 207 $ par mois**, seuil

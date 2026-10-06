@@ -1,5 +1,9 @@
 """
-Cache sémantique (SQLite + embeddings lexicaux).
+Cache d'équivalence lexicale contextuelle (context-aware fuzzy / lexical cache), SQLite.
+
+Ce n'est pas un cache sémantique à embeddings neuronaux : deux requêtes sont équivalentes si
+leurs traits lexicaux hachés (mots racinisés, trigrammes de caractères) se recouvrent assez,
+dans le même contexte et avec les mêmes identifiants.
 
 Corrections par rapport à v3 :
 - v3 utilisait un vecteur aléatoire dérivé d'un SHA-256 : deux questions différant d'une

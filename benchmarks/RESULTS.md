@@ -31,7 +31,11 @@ Historique :
   choisie mais signalée « contexte insuffisant » (2,4 % des requêtes à τ = 0,35). Une
   racinisation légère FR/EN (`aiotech/text.py:stem`) ramène ce taux à 0 %.
 
-## Banc 2 – cache sémantique
+## Banc 2 – cache d'équivalence lexicale contextuelle
+
+Cache *context-aware fuzzy / lexical* : similarité de Jaccard pondérée sur les traits lexicaux hachés
+(mots racinisés et trigrammes de caractères), empreinte du contexte, garde sur les identifiants.
+Aucun embedding neuronal.
 
 Flux de 3 000 requêtes, loi de Zipf (s = 1,1) sur les 295 questions, 5 formulations par question.
 

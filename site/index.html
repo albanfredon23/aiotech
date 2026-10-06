@@ -164,12 +164,13 @@ header.top {
 .demo { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px; margin-top: 36px; }
 @media (max-width: 900px) { .demo { grid-template-columns: 1fr; } }
 label.lbl { display: block; font: 500 .75rem/1.2 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
-input[type="text"], input[type="number"], select {
+input[type="text"], input[type="number"], input[type="email"], select, textarea {
   width: 100%; background: var(--ink); color: var(--fg); border: 1px solid var(--line); border-radius: 8px;
   padding: 10px 12px; font: 400 .98rem/1.3 var(--body);
 }
 input[type="number"] { font-variant-numeric: tabular-nums; }
-input:focus, select:focus { border-color: var(--signal); outline: none; }
+input:focus, select:focus, textarea:focus { border-color: var(--signal); outline: none; }
+textarea { min-height: 140px; resize: vertical; line-height: 1.45; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .chip { background: var(--ink); border: 1px solid var(--line); color: var(--fg-2); border-radius: 999px; padding: 6px 12px; font: 500 .84rem/1.2 var(--body); cursor: pointer; text-align: left; }
 .chip:hover { border-color: var(--fg-2); color: var(--fg); }
@@ -250,6 +251,26 @@ th, td { text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--li
 th:first-child, td:first-child { text-align: left; }
 th { color: var(--muted); font-weight: 500; font-size: .8rem; }
 .assume { font-size: .84rem; color: var(--muted); margin-top: 14px; max-width: 80ch; }
+.roi { margin-top: 18px; border-color: var(--signal); }
+.roi p { color: var(--fg-2); max-width: 70ch; }
+.roi p b { color: var(--fg); }
+.roi .cta { margin-top: 16px; }
+.prices { width: 100%; border-collapse: collapse; font-size: .84rem; margin-top: 8px; }
+.prices th, .prices td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line-soft); }
+.prices td + td, .prices th + th { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ── contact ───────────────────────────────────────────────────────────── */
+.contact { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 20px; margin-top: 36px; position: relative; }
+.contact .full { grid-column: 1 / -1; }
+@media (max-width: 760px) { .contact { grid-template-columns: 1fr; } }
+.consent { display: flex; gap: 10px; align-items: flex-start; color: var(--fg-2); font-size: .86rem; line-height: 1.5; }
+.consent input { margin-top: 4px; accent-color: var(--signal); flex: none; }
+.privacy { font-size: .8rem; color: var(--muted); line-height: 1.5; }
+.hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.form-status { min-height: 1.4em; font-size: .92rem; color: var(--fg-2); }
+.form-status[data-kind="ok"] { color: var(--good); }
+.form-status[data-kind="err"] { color: var(--critical); }
+.contact button[disabled] { opacity: .6; cursor: progress; }
 
 /* ── mesures / changements / code ──────────────────────────────────────── */
 .bench td.hl { color: var(--fg); font-weight: 600; }
@@ -280,6 +301,7 @@ footer.end .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-conte
       <a href="#economies" class="keep">Économies</a>
       <a href="#mesures">Mesures</a>
       <a href="#code">Code</a>
+      <a href="#contact" class="keep">Contact</a>
     </nav>
   </div>
 </header>
@@ -327,8 +349,8 @@ footer.end .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-conte
         </div></div>
         <div class="step" data-gate="2"><div class="step-card">
           <div class="step-n">ÉTAPE 3 / 7</div>
-          <h3>Cache</h3>
-          <p>Une question équivalente, posée dans le même contexte, reçoit la réponse déjà calculée. Deux questions qui diffèrent par un identifiant (ORION-12 et ORION-13) ne partagent jamais de réponse.</p>
+          <h3>Cache d'équivalence lexicale</h3>
+          <p>Une question lexicalement équivalente (autre formulation, mêmes termes), posée dans le même contexte, reçoit la réponse déjà calculée. Deux questions qui diffèrent par un identifiant (ORION-12 et ORION-13) ne partagent jamais de réponse.</p>
           <div class="effect"><b>Effet</b><span>un appel en moins, 0 réponse erronée mesurée</span></div>
           <span class="file">aiotech/gateway/cache.py</span>
         </div></div>
@@ -406,7 +428,7 @@ footer.end .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-conte
       <div class="formula">
         <div class="eq"><span class="k">A</span>(S) = min( reach(q, ∪S) , coverage(q, ∪S) , contraintes(S) ) ≥ <span class="k">τ</span></div>
         <div class="defs">
-          <div><b>reach</b><p>1 − ‖relu(q − x)‖ / ‖q‖ : part de la masse euclidienne de la question atteinte par les segments retenus.</p></div>
+          <div><b>reach</b><p>1 − ‖relu(q − x)‖ / ‖q‖ : part de la masse de la question atteinte par les segments retenus, mesurée dans un espace de traits lexicaux projeté (HashingEmbedder : mots racinisés, bigrammes et trigrammes de caractères hachés). Pas d'embedding neuronal.</p></div>
           <div><b>coverage</b><p>Part des mots de la question présents, pondérés par leur rareté : un identifiant comme « ORION-12 » compte plus que « module ».</p></div>
           <div><b>contraintes</b><p>Termes requis, termes interdits, métadonnées. Un terme interdit présent donne 0, donc un rejet.</p></div>
         </div>
@@ -421,7 +443,7 @@ footer.end .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-conte
       <div class="section-head">
         <div class="eyebrow">Démonstration</div>
         <h2>Posez une question, voyez ce qui part au modèle.</h2>
-        <p>Six documents de démonstration. L'ARG choisit les segments à envoyer avec le même algorithme que le paquet Python : portage JavaScript, avec un hachage FNV au lieu de BLAKE2.</p>
+        <p>Six documents de démonstration. L'ARG choisit les segments à envoyer avec le même algorithme que le paquet Python : portage JavaScript, avec un hachage FNV au lieu de BLAKE2. Les vecteurs sont des traits lexicaux hachés, pas un embedding neuronal : aucun modèle de fondation, aucun appel réseau, résultat déterministe.</p>
       </div>
       <div class="demo">
         <div class="panel">
@@ -488,7 +510,11 @@ footer.end .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-conte
               <div class="ctl"><label for="cin">Entrée</label><input type="number" id="cin" min="0" step="0.1" value="1"></div>
               <div class="ctl"><label for="cout">Sortie</label><input type="number" id="cout" min="0" step="0.5" value="5"></div>
             </div>
-            <p class="hint">Tarifs publics de l'API Anthropic relevés le 25/09/2026.</p>
+            <p class="hint">Préréglages : tarifs publics de l'API Anthropic relevés le 25/09/2026, sans remise ni cache de prompt. Vérifiez les tarifs actuels du fournisseur : chaque prix est modifiable, et « Personnalisé » accepte tout autre modèle.</p>
+            <details class="tbl">
+              <summary>Tableau des tarifs préréglés</summary>
+              <div class="tscroll"><table class="prices" id="tblPrices"></table></div>
+            </details>
           </div>
           <div class="ctl-group">
             <div class="gtitle">Leviers AIOTECH</div>
@@ -518,7 +544,7 @@ footer.end .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-conte
             <div class="tiles">
               <div><div class="k">Sans AIOTECH, par mois</div><div class="v" id="c0">–</div></div>
               <div><div class="k">Avec AIOTECH, par mois</div><div class="v" id="c1">–</div></div>
-              <div><div class="k">Économie par an</div><div class="v" id="savY">–</div></div>
+              <div><div class="k">Économie estimée par an</div><div class="v" id="savY">–</div></div>
               <div><div class="k">Seuil de rentabilité</div><div class="v" id="be">–</div></div>
             </div>
           </div>
@@ -541,7 +567,15 @@ footer.end .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-conte
               <div class="tscroll"><table id="tblVol"></table></div>
             </details>
           </div>
-          <p class="assume">Calcul : sans AIOTECH, chaque requête part au modèle phare avec tout le contexte. Avec AIOTECH, le contexte est réduit, une part des requêtes va au modèle économique, une part est servie par le cache, puis on ajoute le coût fixe et le coût variable du middleware. Les mêmes formules sont dans <code>aiotech/economics.py</code> et testées.</p>
+          <p class="assume">Calcul : sans AIOTECH, chaque requête part au modèle phare avec tout le contexte. Avec AIOTECH, le contexte est réduit, une part des requêtes va au modèle économique, une part est servie par le cache, puis on ajoute le coût fixe et le coût variable du middleware. Les mêmes formules sont dans <code>aiotech/economics.py</code> et testées. Il s'agit d'une économie estimée : le ROI réel dépend de la distribution de votre trafic, du taux de cache effectif et de la structure de vos requêtes.</p>
+          <div class="panel roi">
+            <p><b>Mesurez votre ROI réel.</b> Testez AIOTECH sur 100 requêtes anonymisées de votre historique : contexte retenu, taux de cache et coût, mesurés sur votre propre trafic plutôt qu'estimés.</p>
+            <div class="cta">
+              <a class="btn btn-primary" href="#contact" data-req="audit">Demander l'audit sur 100 requêtes</a>
+              <a class="btn btn-ghost" href="https://github.com/albanfredon23/aiotech/blob/main/benchmarks/RESULTS.md">Voir le benchmark</a>
+              <a class="btn btn-ghost" href="https://github.com/albanfredon23/aiotech#avec-docker">Déployer / Tester le Docker</a>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -568,7 +602,7 @@ footer.end .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-conte
           <p>Rappel : tous les documents nécessaires à la réponse sont dans le contexte envoyé. La référence a aussi 100 %.</p>
         </div>
         <div class="panel">
-          <h3>Cache et garde sur les identifiants</h3>
+          <h3>Cache d'équivalence lexicale et garde sur les identifiants</h3>
           <div class="tscroll"><table class="bench">
             <thead><tr><th>Garde</th><th>Réponses du cache</th><th>Réponses erronées</th></tr></thead>
             <tbody>
@@ -612,7 +646,7 @@ footer.end .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-conte
           <ul class="plain">
             <li><b>Exécution de code supprimée.</b> L'outil <code>run_python</code> exécutait le code produit par le modèle. Il est remplacé par une calculatrice sans exécution.</li>
             <li><b>Administration protégée.</b> Les routes <code>/admin</code> n'avaient aucune authentification, et sans clé API les quotas ne s'appliquaient pas.</li>
-            <li><b>Cache réellement sémantique.</b> Avant, un vecteur aléatoire tiré d'un hachage. Les erreurs ne sont plus mises en cache.</li>
+            <li><b>Un vrai cache d'équivalence lexicale.</b> Avant, un vecteur aléatoire tiré d'un hachage : un cache exact présenté comme « sémantique ». Les erreurs ne sont plus mises en cache.</li>
             <li><b>Lecture de fichiers confinée.</b> <code>read_file</code> pouvait lire le fichier <code>.env</code> et ses clés API.</li>
           </ul>
         </div>
@@ -652,6 +686,41 @@ python -m benchmarks.bench_context
 uvicorn aiotech.api.main:app --port 8000</pre>
         </div>
       </div>
+    </div>
+
+  <section id="contact" class="solid">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="eyebrow">Contact</div>
+        <h2>Audit, preuve de concept ou licence.</h2>
+        <p>Décrivez votre usage. L'audit rejoue 100 requêtes anonymisées de votre historique pour mesurer le contexte retenu, le taux de cache et l'économie réelle. N'envoyez pas de requêtes ici : l'échantillon s'échange ensuite par un canal convenu.</p>
+      </div>
+      <!-- Pour recevoir les demandes par e-mail : créer un formulaire sur formspree.io et coller son adresse
+           (https://formspree.io/f/xxxxxxxx) dans data-endpoint. Vide : la demande ouvre un ticket GitHub public. -->
+      <form class="panel contact" id="contactForm" data-endpoint="" method="post">
+        <div class="ctl full"><label class="lbl" for="cf-demande">Demande</label>
+          <select id="cf-demande" name="demande" required>
+            <option value="audit">Audit : 100 requêtes anonymisées</option>
+            <option value="poc">Preuve de concept sur votre infrastructure</option>
+            <option value="licence">Licence (Pro, Team / Agence, Entreprise)</option>
+            <option value="autre">Autre question</option>
+          </select></div>
+        <div class="ctl"><label class="lbl" for="cf-nom">Nom</label><input type="text" id="cf-nom" name="nom" autocomplete="name" maxlength="100" required></div>
+        <div class="ctl"><label class="lbl" for="cf-email">E-mail professionnel</label><input type="email" id="cf-email" name="email" autocomplete="email" maxlength="200" required></div>
+        <div class="ctl"><label class="lbl" for="cf-org">Organisation (facultatif)</label><input type="text" id="cf-org" name="organisation" autocomplete="organization" maxlength="120"></div>
+        <div class="ctl"><label class="lbl" for="cf-volume">Volume mensuel de requêtes LLM</label>
+          <select id="cf-volume" name="volume">
+            <option>Moins de 100 000</option><option>100 000 à 1 million</option><option>1 à 10 millions</option><option>Plus de 10 millions</option><option>Je ne sais pas</option>
+          </select></div>
+        <div class="ctl full"><label class="lbl" for="cf-message">Message</label><textarea id="cf-message" name="message" maxlength="3000" required placeholder="Cas d'usage, modèles utilisés, contraintes (hébergement, conformité)…"></textarea></div>
+        <div class="hp" aria-hidden="true"><label for="cf-hp">Ne pas remplir</label><input type="text" id="cf-hp" name="_gotcha" tabindex="-1" autocomplete="off"></div>
+        <input type="hidden" name="_subject" value="AIOTECH : nouvelle demande">
+        <label class="consent full"><input type="checkbox" name="consentement" value="oui" required><span>J'accepte que ces informations soient utilisées pour répondre à ma demande.</span></label>
+        <p class="privacy full">Données utilisées uniquement pour vous répondre, ni revendues ni utilisées pour de la prospection, conservées 12 mois au plus. Elles transitent par Formspree (sous-traitant établi aux États-Unis). Vous pouvez en demander l'accès, la rectification ou l'effacement en répondant au message reçu.</p>
+        <p class="hint full" id="contactMode" hidden>Envoi direct pas encore activé : la demande s'ouvrira en ticket GitHub public pré-rempli (compte GitHub requis), sans votre nom ni votre e-mail. N'y mettez aucune information confidentielle.</p>
+        <div class="full"><button class="btn btn-primary" type="submit">Envoyer la demande</button></div>
+        <p class="form-status full" id="contactStatus" role="status" aria-live="polite"></p>
+      </form>
     </div>
   </section>
 </main>
@@ -1128,7 +1197,16 @@ runDemo();
    4. Économies d'échelle (portage de aiotech/economics.py)
    ════════════════════════════════════════════════════════════════════════ */
 const DEFAULTS = { vol: 6, pt: 400, ct: 3000, ot: 350, fm: "opus", fin: 4, fout: 20, cm: "haiku", cin: 1, cout: 5, red: 0.5, share: 0.4, hit: 0.15, fix: 1500, var: 0.02 };
+// Tarifs publics Anthropic relevés le 25/09/2026, USD par million de tokens [entrée, sortie]. À vérifier avant usage.
 const PRESETS = { opus: [4, 20], fable: [10, 50], sonnet: [2, 10], haiku: [1, 5] };
+const PRESET_NAMES = { fable: "Claude Fable 5.1", opus: "Claude Opus 5.5", sonnet: "Claude Sonnet 5.5", haiku: "Claude Haiku 4.5" };
+(() => {
+  const t = document.getElementById("tblPrices");
+  const head = t.createTHead().insertRow();
+  ["Modèle", "Entrée $/Mtok", "Sortie $/Mtok"].forEach((h) => { const th = document.createElement("th"); th.scope = "col"; th.textContent = h; head.appendChild(th); });
+  const body = t.createTBody();
+  Object.keys(PRESET_NAMES).forEach((k) => { const r = body.insertRow(); [PRESET_NAMES[k], PRESETS[k][0], PRESETS[k][1]].forEach((v) => { r.insertCell().textContent = v; }); });
+})();
 const num = (id) => { const v = parseFloat($(id).value); return Number.isFinite(v) && v >= 0 ? v : 0; };
 function scenario() {
   return { n: Math.pow(10, num("vol")), prompt: num("pt"), context: num("ct"), output: num("ot"),
@@ -1328,6 +1406,42 @@ $("controls").addEventListener("input", updateCalc);
 $("reset").addEventListener("click", () => { for (const k in DEFAULTS) $(k).value = DEFAULTS[k]; updateCalc(); });
 let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(updateCalc, 120); });
 updateCalc();
+})();
+
+// Formulaire de contact : Formspree si data-endpoint est renseigné, sinon ticket GitHub pré-rempli.
+(() => {
+  "use strict";
+  const form = document.getElementById("contactForm");
+  if (!form) return;
+  const f = form.elements, status = document.getElementById("contactStatus");
+  const endpoint = (form.dataset.endpoint || "").trim();
+  const ISSUES = "https://github.com/albanfredon23/aiotech/issues/new";
+  if (!endpoint) document.getElementById("contactMode").hidden = false;
+  document.querySelectorAll("[data-req]").forEach((a) => a.addEventListener("click", () => { f.namedItem("demande").value = a.dataset.req; }));
+  const say = (msg, kind) => { status.textContent = msg; status.dataset.kind = kind || ""; };
+  const label = (name) => f.namedItem(name).selectedOptions[0].textContent;
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (f.namedItem("_gotcha").value) return;
+    if (!form.reportValidity()) return;
+    if (!endpoint) {
+      const org = f.namedItem("organisation").value.trim();
+      const body = `**Demande** : ${label("demande")}\n**Volume mensuel** : ${label("volume")}\n**Organisation** : ${org || "–"}\n\n${f.namedItem("message").value.trim()}`;
+      const title = `[${label("demande").split(" :")[0]}] ${org || "Demande"}`.slice(0, 120);
+      window.open(`${ISSUES}?${new URLSearchParams({ title, body })}`, "_blank", "noopener");
+      say("Un ticket GitHub pré-rempli s'est ouvert dans un nouvel onglet : relisez-le puis publiez-le.", "ok");
+      return;
+    }
+    const btn = form.querySelector('button[type="submit"]');
+    btn.disabled = true; say("Envoi en cours…");
+    try {
+      const r = await fetch(endpoint, { method: "POST", body: new FormData(form), headers: { Accept: "application/json" } });
+      if (!r.ok) throw new Error(String(r.status));
+      form.reset(); say("Merci, votre demande est envoyée. Réponse sous 48 h ouvrées.", "ok");
+    } catch (err) {
+      say("L'envoi a échoué. Réessayez dans un instant, ou ouvrez un ticket sur le dépôt GitHub.", "err");
+    } finally { btn.disabled = false; }
+  });
 })();
 </script>
 

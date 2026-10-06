@@ -1,5 +1,5 @@
 """
-Banc 2 – cache sémantique : taux de réponses réutilisées et réponses ERRONÉES servies.
+Banc 2 – cache d'équivalence lexicale contextuelle : taux de réponses réutilisées et réponses ERRONÉES servies.
 
 Flux de 3 000 requêtes tirées selon une loi de Zipf (s = 1,1) sur les questions du corpus,
 chacune sous une de 5 formulations de surface. Une réponse servie depuis le cache est
