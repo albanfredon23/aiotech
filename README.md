@@ -3,8 +3,13 @@
 [![CI](https://github.com/albanfredon23/aiotech/actions/workflows/ci.yml/badge.svg)](https://github.com/albanfredon23/aiotech/actions/workflows/ci.yml)
 [![Site](https://github.com/albanfredon23/aiotech/actions/workflows/pages.yml/badge.svg)](https://github.com/albanfredon23/aiotech/actions/workflows/pages.yml)
 
-**Site : [albanfredon23.github.io/aiotech](https://albanfredon23.github.io/aiotech/)** : le pipeline en 3D,
+**Site : [albanfredon23.github.io/aiotech](https://albanfredon23.github.io/aiotech/)** : l'extension
+**AIOTECH MCP** (en vente : essai gratuit, Pro, Team / Agence, Entreprise), le pipeline en 3D,
 l'innovation ARG, une démonstration en direct et le calculateur d'économies d'échelle.
+
+Ce dépôt contient le cœur algorithmique, consultable publiquement. L'extension MCP commerciale, qui
+l'embarque, est vendue sous licence ; sa publication ici n'emporte aucune licence d'exploitation
+commerciale.
 
 AIOTECH est un middleware placé devant n'importe quel LLM (Claude, GPT, Gemini, Mistral, Ollama…
 via LiteLLM). Avant chaque appel, il retire le contexte inutile, réutilise les réponses déjà
@@ -195,3 +200,14 @@ Le workflow `.github/workflows/pages.yml` publie `site/` sur GitHub Pages à cha
 modifie le site. À activer une seule fois : **Settings → Pages → Build and deployment → Source :
 GitHub Actions**. Si le premier déploiement a échoué faute d'activation, le relancer depuis
 l'onglet Actions (workflow « Site », bouton *Run workflow*).
+
+| Fichier | Rôle |
+|---|---|
+| `site/index.html` | Page d'accueil : extension, démonstration, calculateur, offres, contact |
+| `site/mentions-legales.html`, `confidentialite.html`, `cgv.html` | Mentions légales (LCEN), confidentialité et cookies (RGPD), conditions de vente aux professionnels. Les champs `[À COMPLÉTER]` (identité, SIRET, TVA, contact) sont obligatoires avant la première vente |
+| `site/stats.js` | Mesure d'audience GoatCounter (compte `alban`) : anonyme, sans cookie, désactivée si le visiteur la refuse ou envoie Do Not Track / Global Privacy Control |
+| `site/vendor/` | Polices (OFL) et three.js r128 (MIT) hébergés avec le site : aucune requête vers Google Fonts ni vers un CDN |
+
+Statistiques de fréquentation : [alban.goatcounter.com](https://alban.goatcounter.com). Formulaire de
+contact : renseigner l'adresse Formspree dans l'attribut `data-endpoint` du formulaire de
+`site/index.html` ; vide, la demande ouvre un ticket GitHub public.

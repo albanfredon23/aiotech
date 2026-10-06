@@ -3,13 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-</head>
-<body>
-<title>AIOTECH 46</title>
-<meta name="description" content="AIOTECH 46 : middleware pour LLM qui n'envoie au modèle que les tokens justifiés. Pipeline, innovation ARG, démonstration et calcul des économies d'échelle.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<title>AIOTECH MCP</title>
+<meta name="description" content="AIOTECH MCP, extension en vente pour Claude Code, Claude Desktop, Cursor et tout client MCP : l'assistant ne lit que les passages utiles, et vous voyez en temps réel les tokens et l'argent économisés.">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<link rel="stylesheet" href="vendor/fonts/fonts.css">
+<script src="stats.js" defer></script>
 <style>
 /* Mise en page : scène 3D fixe en fond (le flux de tokens), récit en colonne gauche qui défile
    au-dessus ; démonstration, calculateur et mesures sur des panneaux opaques pleine largeur. */
@@ -272,6 +270,27 @@ th { color: var(--muted); font-weight: 500; font-size: .8rem; }
 .form-status[data-kind="err"] { color: var(--critical); }
 .contact button[disabled] { opacity: .6; cursor: progress; }
 
+/* ── extension et offres ───────────────────────────────────────────────── */
+.feat { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-top: 36px; }
+@media (max-width: 860px) { .feat { grid-template-columns: 1fr; } }
+.feat p { color: var(--fg-2); margin-top: 8px; font-size: .95rem; }
+.feat code, .tools code { font: 500 .86em var(--mono); color: var(--fg); }
+.tools-box { margin-top: 20px; }
+.plans { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: 36px; }
+@media (max-width: 1100px) { .plans { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .plans { grid-template-columns: 1fr; } }
+.plan { display: flex; flex-direction: column; gap: 12px; }
+.plan.featured { border-color: var(--signal); box-shadow: 0 0 0 1px var(--signal) inset; }
+.plan .price b { display: block; font: 800 clamp(1.35rem, 2vw, 1.7rem)/1.15 var(--display); font-stretch: 104%; color: var(--fg); }
+.plan .price span { display: block; color: var(--muted); font-size: .86rem; margin-top: 4px; }
+.plan .for { color: var(--fg-2); font-size: .92rem; }
+.plan ul.plain { margin: 0; gap: 8px; }
+.plan ul.plain li { font-size: .9rem; }
+.plan .btn { margin-top: auto; justify-content: center; }
+footer.end .legal { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+footer.end a { color: var(--fg-2); }
+footer.end a:hover { color: var(--fg); }
+
 /* ── mesures / changements / code ──────────────────────────────────────── */
 .bench td.hl { color: var(--fg); font-weight: 600; }
 ul.plain { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 10px; }
@@ -286,6 +305,8 @@ footer.end { border-top: 1px solid var(--line-soft); background: var(--ink); pad
 footer.end .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: space-between; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 </style>
+</head>
+<body>
 
 <canvas id="scene" aria-hidden="true"></canvas>
 <div class="veil" aria-hidden="true"></div>
@@ -293,14 +314,14 @@ footer.end .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-conte
 
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="#top"><b>AIOTECH</b><span>46</span></a>
+    <a class="brand" href="#top"><b>AIOTECH</b><span>MCP</span></a>
     <nav aria-label="Sections">
-      <a href="#pipeline">Pipeline</a>
+      <a href="#extension">Extension</a>
       <a href="#arg">Innovation</a>
       <a href="#demo">Démo</a>
-      <a href="#economies" class="keep">Économies</a>
+      <a href="#economies">Économies</a>
+      <a href="#offres" class="keep">Offres</a>
       <a href="#mesures">Mesures</a>
-      <a href="#code">Code</a>
       <a href="#contact" class="keep">Contact</a>
     </nav>
   </div>
@@ -309,12 +330,13 @@ footer.end .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-conte
 <main id="top">
   <section class="hero">
     <div class="wrap">
-      <div class="eyebrow">Middleware pour LLM</div>
-      <h1>Chaque token envoyé au modèle doit être <em>justifié</em>.</h1>
-      <p class="lead">AIOTECH se place entre vos applications et n'importe quel LLM. Avant chaque appel, il retire le contexte inutile, réutilise les réponses déjà calculées et choisit le modèle le moins cher capable de répondre. Vous ne payez que ce qui sert.</p>
+      <div class="eyebrow">Extension MCP · disponible à la vente</div>
+      <h1>Votre assistant ne lit que ce qui <em>sert</em>.</h1>
+      <p class="lead">AIOTECH MCP s'installe dans Claude Code, Claude Desktop, Cursor et tout client MCP. Avant que l'assistant ne lise vos documents, il ne lui transmet que les passages utiles à la question, puis affiche en temps réel les tokens et l'argent économisés.</p>
       <div class="cta">
-        <a class="btn btn-primary" href="#economies">Calculer vos économies</a>
-        <a class="btn btn-ghost" href="#pipeline">Suivre une requête</a>
+        <a class="btn btn-primary" href="#offres">Voir les offres</a>
+        <a class="btn btn-ghost" href="#contact" data-req="essai">Essai gratuit</a>
+        <a class="btn btn-ghost" href="#economies">Calculer vos économies</a>
       </div>
       <div class="proof" role="list">
         <div role="listitem"><b>−85 %</b><span>de tokens de contexte envoyés au modèle</span></div>
@@ -325,12 +347,45 @@ footer.end .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-conte
     </div>
   </section>
 
+  <section id="extension" class="solid">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="eyebrow">L'extension</div>
+        <h2>Un serveur MCP, huit outils, un tableau de bord en direct.</h2>
+        <p>Au lieu de faire lire des documents entiers à l'assistant, AIOTECH MCP choisit les seuls passages utiles avec l'ARG et lui renvoie ce contexte réduit. Chaque appel est compté : vous voyez l'économie au fil de l'eau, pas sur une promesse.</p>
+      </div>
+      <div class="feat">
+        <div class="panel"><h3>Moins de tokens, mêmes réponses</h3><p>Les passages utiles sont retenus dans des textes, des fichiers ou des dossiers entiers. Sur le corpus de test : −85 % de tokens de contexte, 100 % des documents utiles conservés.</p></div>
+        <div class="panel"><h3>L'économie en temps réel</h3><p>Tableau de bord local mis à jour à chaque appel, ligne d'état dans Claude Code, relevé mensuel et export CSV : tokens évités et dollars économisés au tarif de votre modèle.</p></div>
+        <div class="panel"><h3>Des réponses vérifiées</h3><p>Chaque phrase de la réponse doit s'appuyer sur le contexte retenu ; le maillon faible est signalé. Si le contexte ne suffit pas, l'outil le dit au lieu de laisser l'assistant inventer.</p></div>
+        <div class="panel"><h3>Vos données restent chez vous</h3><p>Le serveur tourne sur votre poste ou votre infrastructure. Aucune question ni aucun document n'est transmis à l'éditeur : seuls des compteurs sont enregistrés localement, et la licence se vérifie hors ligne.</p></div>
+      </div>
+      <div class="panel tools-box">
+        <h3>Les outils</h3>
+        <div class="tscroll"><table class="bench tools">
+          <thead><tr><th>Outil</th><th>Rôle</th><th>Offres</th></tr></thead>
+          <tbody>
+            <tr><td><code>select_context</code></td><td>Passages utiles parmi des documents fournis</td><td>Toutes (essai : 10 documents, 50 appels par jour)</td></tr>
+            <tr><td><code>select_context_files</code></td><td>Idem à partir de fichiers ou de dossiers locaux</td><td>Payantes</td></tr>
+            <tr><td><code>verify_answer</code></td><td>Contrôle que la réponse s'appuie sur le contexte</td><td>Payantes</td></tr>
+            <tr><td><code>estimate_savings</code></td><td>Projection mensuelle avec et sans AIOTECH</td><td>Toutes</td></tr>
+            <tr><td><code>savings_report</code></td><td>Économies depuis le démarrage, du jour, au total</td><td>Toutes</td></tr>
+            <tr><td><code>monthly_savings_report</code></td><td>Relevé mensuel, commission de l'offre Entreprise</td><td>Payantes</td></tr>
+            <tr><td><code>export_savings_csv</code></td><td>Export du journal des économies</td><td>Payantes</td></tr>
+            <tr><td><code>license_status</code></td><td>Offre active et limites</td><td>Toutes</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+      <p class="assume">Compatible avec Claude Code, Claude Desktop, Cursor et tout client du Model Context Protocol, en local (stdio) ou en équipe (HTTP protégé par jeton, image Docker).</p>
+    </div>
+  </section>
+
   <section id="pipeline">
     <div class="wrap">
       <div class="section-head">
         <div class="eyebrow">Le trajet d'une requête</div>
         <h2>Sept contrôles avant que le modèle ne lise un seul token.</h2>
-        <p>Dans la scène, chaque point est un token. Les points bleus sont les documents candidats, les clairs la question. Ceux qui deviennent ambrés sont ceux qui atteignent le modèle.</p>
+        <p>Dans la scène, chaque point est un token. Les points bleus sont les documents candidats, les clairs la question. Ceux qui deviennent ambrés sont ceux qui atteignent le modèle. L'extension MCP embarque la sélection de contexte (étape 2), la vérification et le comptage des économies ; la passerelle complète applique les sept contrôles et s'installe avec l'offre Entreprise.</p>
       </div>
       <div class="steps" id="steps">
         <div class="step" data-gate="0"><div class="step-card">
@@ -391,7 +446,7 @@ footer.end .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-conte
       <div class="section-head">
         <div class="eyebrow">L'innovation</div>
         <h2>De la sphère à l'ARG : garder l'échelle, décider par un « et » logique.</h2>
-        <p>AIOTECH 44 raisonnait sur une hypersphère. La version 46 remplace cette géométrie par l'ARG (Admissibility &amp; Reachability Gate), dont chaque critère a une unité et peut être vérifié.</p>
+        <p>AIOTECH 44 raisonnait sur une hypersphère. AIOTECH remplace cette géométrie par l'ARG (Admissibility &amp; Reachability Gate), dont chaque critère a une unité et peut être vérifié.</p>
       </div>
       <div class="grid-2">
         <div class="panel">
@@ -414,7 +469,7 @@ footer.end .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-conte
           <p>Normaliser chaque vecteur supprime sa longueur. Un segment qui mentionne une fois le sujet et un segment qui le traite en entier deviennent le même point. Les seuils n'ont plus d'unité, et les contraintes de la v44 étaient des vecteurs aléatoires.</p>
         </div>
         <div class="panel">
-          <div class="tag">Maintenant · AIOTECH 46</div>
+          <div class="tag">Maintenant · ARG</div>
           <h3>Mesurer ce que le segment atteint de la question</h3>
           <svg class="illus" viewBox="0 0 320 210" role="img" aria-labelledby="rch-t">
             <title id="rch-t">Barres des traits de la question et part atteinte par le segment ; le déficit sur l'identifiant 12 fait baisser reach.</title>
@@ -479,7 +534,7 @@ footer.end .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-conte
       <div class="section-head">
         <div class="eyebrow">Économies d'échelle</div>
         <h2>Un coût fixe qui se dilue, un gain qui suit chaque requête.</h2>
-        <p>Le middleware coûte un montant fixe par mois (hébergement, maintenance) et presque rien par requête. Ce qu'il fait économiser croît avec le volume. Plus vous envoyez de requêtes, plus le coût par requête descend vers son plancher. Le seuil de rentabilité est le volume où les deux courbes se croisent.</p>
+        <p>AIOTECH coûte un montant fixe par mois (licence, hébergement) et presque rien par requête. Ce qu'il fait économiser croît avec le volume. Plus vous envoyez de requêtes, plus le coût par requête descend vers son plancher. Le seuil de rentabilité est le volume où les deux courbes se croisent.</p>
       </div>
       <div class="calc">
         <div class="panel controls" id="controls">
@@ -528,7 +583,7 @@ footer.end .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-conte
               <p class="hint">Dépend de la répétition de votre trafic. Le banc atteint 85 % sur un trafic très répétitif : ce n'est pas une prévision.</p></div>
           </div>
           <div class="ctl-group">
-            <div class="gtitle">Coût du middleware</div>
+            <div class="gtitle">Coût d'AIOTECH (licence, hébergement)</div>
             <div class="row2">
               <div class="ctl"><label for="fix">Fixe, $ par mois</label><input type="number" id="fix" min="0" step="100" value="1500"></div>
               <div class="ctl"><label for="var">$ pour 1 000 requêtes</label><input type="number" id="var" min="0" step="0.01" value="0.02"></div>
@@ -581,6 +636,67 @@ footer.end .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-conte
     </div>
   </section>
 
+  <section id="offres" class="solid">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="eyebrow">Offres</div>
+        <h2>Essayez gratuitement, payez quand l'économie est visible.</h2>
+        <p>Le tableau de bord est inclus dès l'essai : vous mesurez votre économie réelle avant d'acheter. Vente sur devis, réservée aux professionnels.</p>
+      </div>
+      <div class="plans">
+        <article class="panel plan">
+          <div class="tag">Essai · Community</div>
+          <div class="price"><b>Gratuit</b><span>sans limite de durée</span></div>
+          <p class="for">Pour mesurer l'économie sur vos propres documents.</p>
+          <ul class="plain">
+            <li>10 documents par appel, 50 appels par jour</li>
+            <li>Tableau de bord en temps réel</li>
+            <li>Estimation et suivi des économies</li>
+          </ul>
+          <a class="btn btn-ghost" href="#contact" data-req="essai">Demander l'essai</a>
+        </article>
+        <article class="panel plan featured">
+          <div class="tag">Pro · développeurs et créateurs</div>
+          <div class="price"><b>99,99&nbsp;$</b><span>HT par mois, sans engagement</span></div>
+          <p class="for">Développeurs indépendants et créateurs de micro-SaaS qui paient l'API au token.</p>
+          <ul class="plain">
+            <li>Documents et appels illimités</li>
+            <li>Lecture de fichiers et de dossiers locaux</li>
+            <li>Vérification des réponses</li>
+            <li>Relevé mensuel et export CSV</li>
+            <li>Un poste</li>
+          </ul>
+          <a class="btn btn-primary" href="#contact" data-req="pro">Choisir Pro</a>
+        </article>
+        <article class="panel plan">
+          <div class="tag">Team · agences et studios</div>
+          <div class="price"><b>4&nbsp;990 à 8&nbsp;000&nbsp;€</b><span>HT par an, selon le nombre de postes</span></div>
+          <p class="for">Agences IA et studios qui livrent des applications à plusieurs clients.</p>
+          <ul class="plain">
+            <li>Tout Pro, pour toute l'équipe</li>
+            <li>Serveur Docker partagé, accès HTTP protégé par jeton</li>
+            <li>Journal et tableau de bord communs</li>
+            <li>Licence annuelle</li>
+          </ul>
+          <a class="btn btn-ghost" href="#contact" data-req="team">Demander un devis</a>
+        </article>
+        <article class="panel plan">
+          <div class="tag">Entreprise · B2B</div>
+          <div class="price"><b>2&nbsp;000 à 3&nbsp;000&nbsp;€</b><span>HT d'installation, puis 20 à 25 % des économies nettes</span></div>
+          <p class="for">Scale-ups à forte consommation de tokens d'API.</p>
+          <ul class="plain">
+            <li>Preuve de concept sur votre infrastructure</li>
+            <li>Passerelle AIOTECH complète si besoin : cache, routage, garde-fous</li>
+            <li>Commission calculée chaque mois sur les économies mesurées, relevé joint à la facture</li>
+            <li>Pas d'économie, pas de part variable</li>
+          </ul>
+          <a class="btn btn-ghost" href="#contact" data-req="entreprise">Planifier une preuve de concept</a>
+        </article>
+      </div>
+      <p class="assume">Prix hors taxes. L'offre Pro est amortie dès que vous économisez plus de 99,99 $ de tokens par mois, soit environ 25 millions de tokens de contexte évités au tarif d'entrée de Claude Opus 5.5 (4 $ par million). L'économie apparaît sur une facture d'API au token ; avec un abonnement à prix fixe (Claude Pro ou Max, Cursor…), le gain est un contexte moins chargé, pas une facture plus basse. <a href="cgv.html">Conditions générales de vente</a>.</p>
+    </div>
+  </section>
+
   <section id="mesures" class="solid">
     <div class="wrap">
       <div class="section-head">
@@ -628,8 +744,8 @@ footer.end .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-conte
   <section id="changements" class="solid">
     <div class="wrap">
       <div class="section-head">
-        <div class="eyebrow">Ce qui a changé</div>
-        <h2>Deux bases fusionnées, recodées et corrigées.</h2>
+        <div class="eyebrow">Fiabilité</div>
+        <h2>Ce qui a été corrigé avant la mise en vente.</h2>
       </div>
       <div class="changes">
         <div class="panel">
@@ -657,52 +773,49 @@ footer.end .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-conte
   <section id="code" class="solid">
     <div class="wrap">
       <div class="section-head">
-        <div class="eyebrow">Code</div>
-        <h2>Un paquet Python, numpy pour seule dépendance du cœur.</h2>
-        <p>Livré dans l'archive <code>aiotech45.zip</code>. FastAPI, LiteLLM et PyTorch sont optionnels.</p>
+        <div class="eyebrow">Installation</div>
+        <h2>Installé en une commande, licence vérifiée hors ligne.</h2>
+        <p>Après l'achat, vous recevez le paquet ou l'image Docker et votre clé de licence. Le cœur algorithmique est public sur <a href="https://github.com/albanfredon23/aiotech">GitHub</a> : vous pouvez lire l'ARG et rejouer les bancs de mesure avant d'acheter.</p>
       </div>
       <div class="grid-2">
         <div class="panel">
-          <h3>Structure</h3>
-<pre class="code">aiotech/
-  reasoning/   <span class="c"># ARG, budget de contexte, agents</span>
-  gateway/     <span class="c"># garde-fous, cache, routage, disjoncteur, client</span>
-  economics.py <span class="c"># modèle d'économies d'échelle</span>
-  tenancy.py   <span class="c"># locataires, clés, quotas</span>
-  telemetry.py <span class="c"># métriques Prometheus</span>
-  research/    <span class="c"># version PyTorch différentiable (non entraînée)</span>
-  api/main.py  <span class="c"># API FastAPI</span>
-benchmarks/    <span class="c"># bancs + RESULTS.md</span>
-tests/         <span class="c"># 55 tests cœur + API + recherche</span></pre>
+          <h3>Un poste · Essai et Pro</h3>
+<pre class="code">pip install aiotech_mcp-1.0.0-py3-none-any.whl
+claude mcp add aiotech -- aiotech-mcp
+
+<span class="c"># clé de licence : ~/.aiotech/license.key</span>
+<span class="c"># ou variable AIOTECH_LICENSE_KEY</span>
+<span class="c"># tableau de bord : http://127.0.0.1:8790</span></pre>
         </div>
         <div class="panel">
-          <h3>Démarrer</h3>
-<pre class="code">pip install -r requirements.txt
-pytest
-python examples/quickstart.py
-python -m benchmarks.bench_context
+          <h3>Une équipe · Team et Entreprise</h3>
+<pre class="code">cp .env.example .env   <span class="c"># jeton d'accès, clé de licence</span>
+docker compose up -d --build
 
-<span class="c"># API (après pip install -r requirements-full.txt)</span>
-uvicorn aiotech.api.main:app --port 8000</pre>
+<span class="c"># MCP : http://localhost:8000/mcp (jeton Bearer)</span>
+<span class="c"># tableau de bord commun : http://localhost:8790</span></pre>
         </div>
       </div>
     </div>
+  </section>
 
   <section id="contact" class="solid">
     <div class="wrap">
       <div class="section-head">
         <div class="eyebrow">Contact</div>
-        <h2>Audit, preuve de concept ou licence.</h2>
-        <p>Décrivez votre usage. L'audit rejoue 100 requêtes anonymisées de votre historique pour mesurer le contexte retenu, le taux de cache et l'économie réelle. N'envoyez pas de requêtes ici : l'échantillon s'échange ensuite par un canal convenu.</p>
+        <h2>Essai, licence ou preuve de concept.</h2>
+        <p>Choisissez une offre et décrivez votre usage : vous recevez un devis sous 48 h ouvrées, puis la facture et votre clé de licence. L'audit rejoue 100 requêtes anonymisées de votre historique pour mesurer votre économie réelle. N'envoyez pas de requêtes ici : l'échantillon s'échange ensuite par un canal convenu.</p>
       </div>
       <!-- Pour recevoir les demandes par e-mail : créer un formulaire sur formspree.io et coller son adresse
            (https://formspree.io/f/xxxxxxxx) dans data-endpoint. Vide : la demande ouvre un ticket GitHub public. -->
       <form class="panel contact" id="contactForm" data-endpoint="" method="post">
         <div class="ctl full"><label class="lbl" for="cf-demande">Demande</label>
           <select id="cf-demande" name="demande" required>
+            <option value="essai">Essai gratuit (Community)</option>
+            <option value="pro">Licence Pro : 99,99 $ HT par mois</option>
+            <option value="team">Team / Agence : licence annuelle</option>
+            <option value="entreprise">Entreprise : preuve de concept et installation</option>
             <option value="audit">Audit : 100 requêtes anonymisées</option>
-            <option value="poc">Preuve de concept sur votre infrastructure</option>
-            <option value="licence">Licence (Pro, Team / Agence, Entreprise)</option>
             <option value="autre">Autre question</option>
           </select></div>
         <div class="ctl"><label class="lbl" for="cf-nom">Nom</label><input type="text" id="cf-nom" name="nom" autocomplete="name" maxlength="100" required></div>
@@ -716,7 +829,7 @@ uvicorn aiotech.api.main:app --port 8000</pre>
         <div class="hp" aria-hidden="true"><label for="cf-hp">Ne pas remplir</label><input type="text" id="cf-hp" name="_gotcha" tabindex="-1" autocomplete="off"></div>
         <input type="hidden" name="_subject" value="AIOTECH : nouvelle demande">
         <label class="consent full"><input type="checkbox" name="consentement" value="oui" required><span>J'accepte que ces informations soient utilisées pour répondre à ma demande.</span></label>
-        <p class="privacy full">Données utilisées uniquement pour vous répondre, ni revendues ni utilisées pour de la prospection, conservées 12 mois au plus. Elles transitent par Formspree (sous-traitant établi aux États-Unis). Vous pouvez en demander l'accès, la rectification ou l'effacement en répondant au message reçu.</p>
+        <p class="privacy full">Données utilisées uniquement pour vous répondre et établir un devis, ni revendues ni utilisées pour de la prospection, conservées 12 mois au plus sans suite. Elles transitent par Formspree (États-Unis). Détails et exercice de vos droits : <a href="confidentialite.html">politique de confidentialité</a>. Commandes : <a href="cgv.html">conditions générales de vente</a>.</p>
         <p class="hint full" id="contactMode" hidden>Envoi direct pas encore activé : la demande s'ouvrira en ticket GitHub public pré-rempli (compte GitHub requis), sans votre nom ni votre e-mail. N'y mettez aucune information confidentielle.</p>
         <div class="full"><button class="btn btn-primary" type="submit">Envoyer la demande</button></div>
         <p class="form-status full" id="contactStatus" role="status" aria-live="polite"></p>
@@ -727,12 +840,17 @@ uvicorn aiotech.api.main:app --port 8000</pre>
 
 <footer class="end">
   <div class="wrap">
-    <span>AIOTECH 46 · paquet <code>aiotech</code> 45.0.0</span>
-    <a href="https://github.com/albanfredon23/aiotech">github.com/albanfredon23/aiotech</a>
+    <span>AIOTECH MCP 1.0 · cœur <code>aiotech</code> 45.0.0</span>
+    <nav class="legal" aria-label="Informations légales">
+      <a href="mentions-legales.html">Mentions légales</a>
+      <a href="confidentialite.html">Confidentialité</a>
+      <a href="cgv.html">Conditions de vente</a>
+      <a href="https://github.com/albanfredon23/aiotech">GitHub</a>
+    </nav>
   </div>
 </footer>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="vendor/three.min.js"></script>
 <script>
 (() => {
 "use strict";
