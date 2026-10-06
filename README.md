@@ -208,6 +208,4 @@ l'onglet Actions (workflow « Site », bouton *Run workflow*).
 | `site/stats.js` | Mesure d'audience GoatCounter (compte `alban`) : anonyme, sans cookie, désactivée si le visiteur la refuse ou envoie Do Not Track / Global Privacy Control |
 | `site/vendor/` | Polices (OFL) et three.js r128 (MIT) hébergés avec le site : aucune requête vers Google Fonts ni vers un CDN |
 
-Statistiques de fréquentation : [alban.goatcounter.com](https://alban.goatcounter.com). Formulaire de
-contact : renseigner l'adresse Formspree dans l'attribut `data-endpoint` du formulaire de
-`site/index.html` ; vide, la demande ouvre un ticket GitHub public.
+
